@@ -21,7 +21,10 @@ public class Main extends JavaPlugin {
         instance = this;
 
         // 1. Создание папки для схематик
-        new File(getDataFolder(), "schematics").mkdirs();
+        File schemFolder = new File(getDataFolder(), "schematics");
+        if (!schemFolder.exists()) {
+            schemFolder.mkdirs();
+        }
 
         // 2. Загрузка конфигурации
         configManager = new ConfigManager(this);
@@ -49,7 +52,7 @@ public class Main extends JavaPlugin {
         }
 
         getLogger().info("=========================================");
-        getLogger().info("  ElytrixParadise v" + getDescription().getVersion() + " успешно включён!");
+        getLogger().info("  ElytrixParadise v" + getDescription().getVersion() + " [Patch-NPE-Fix] включён!");
         getLogger().info("  Координаты спавна: X=0, Y=" + configManager.getCenterY() + ", Z=0");
         getLogger().info("  Папка для схематик: plugins/ElytrixParadise/schematics/");
         getLogger().info("  Файл схематики: " + configManager.getSchematicFile());

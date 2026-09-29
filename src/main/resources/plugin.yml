@@ -1,9 +1,9 @@
 name: ElytrixParadise
-version: 1.0.0
+version: 1.0.1
 main: ru.rooyzee.elytrixparadise.Main
 api-version: 1.16
 author: rooyzee
-description: Always-active Celestial Paradise Event with cloud schematic at X=0, Z=0
+description: Paradise Cloud Schematic Spawner at X=0, Y=130, Z=0
 depend: [WorldEdit]
 softdepend: [WorldGuard, DecentHolograms, PlaceholderAPI, FastAsyncWorldEdit]
 
@@ -22,8 +22,5 @@ permissions:
     description: Доступ к телепортации в Рай (/ep tp)
     default: true
   elytrixparadise.admin:
-    description: Полный доступ администратора ко всем командам (/ep reload, /ep paste, /ep start, /ep stop, /ep setcenter, /ep setspawn)
-    default: op
-  elytrixparadise.bypass:
-    description: Право ломать и ставить блоки в зоне Рая
+    description: Полный доступ администратора ко всем командам (/ep reload, /ep paste, /ep setcenter, /ep setspawn)
     default: op
