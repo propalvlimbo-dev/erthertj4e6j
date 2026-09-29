@@ -1,5 +1,6 @@
 package ru.rooyzee.elytrixparadise.managers;
 
+import com.sk89q.jnbt.NBTInputStream;
 import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
@@ -8,6 +9,8 @@ import com.sk89q.worldedit.extent.clipboard.io.BuiltInClipboardFormat;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormat;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardReader;
+import com.sk89q.worldedit.extent.clipboard.io.MCEditSchematicReader;
+import com.sk89q.worldedit.extent.clipboard.io.SpongeSchematicReader;
 import com.sk89q.worldedit.function.operation.Operation;
 import com.sk89q.worldedit.function.operation.Operations;
 import com.sk89q.worldedit.math.BlockVector3;
@@ -18,12 +21,15 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import ru.rooyzee.elytrixparadise.Main;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.zip.GZIPInputStream;
 
 public class SchematicManager {
 
@@ -73,39 +79,111 @@ public class SchematicManager {
         File file = findSchematicFile(name);
         if (file == null) {
             plugin.getLogger().warning("Схематика не найдена в папке schematics: " + name);
-            plugin.getLogger().warning("Поместите вашу схематику в: " + new File(schematicsFolder, name).getAbsolutePath());
+            plugin.getLogger().warning("Поместите файл вашей схематики в: " + new File(schematicsFolder, name).getAbsolutePath());
             return null;
         }
 
-        List<ClipboardFormat> formatsToTry = new ArrayList<>();
-        ClipboardFormat primaryFormat = ClipboardFormats.findByFile(file);
-        if (primaryFormat != null) {
-            formatsToTry.add(primaryFormat);
-        }
-
-        // Add all built-in formats (MCEdit, Sponge, etc.) to ensure legacy & modern formats load without error
-        for (BuiltInClipboardFormat builtIn : BuiltInClipboardFormat.values()) {
-            if (!formatsToTry.contains(builtIn)) {
-                formatsToTry.add(builtIn);
+        // 1. Попытка стандартного автоопределения формата по файлу
+        try {
+            ClipboardFormat detected = ClipboardFormats.findByFile(file);
+            if (detected != null) {
+                try (InputStream is = new BufferedInputStream(new FileInputStream(file))) {
+                    ClipboardReader reader = detected.getReader(is);
+                    if (reader != null) {
+                        Clipboard clipboard = reader.read();
+                        if (clipboard != null) {
+                            plugin.getLogger().info("Схематика '" + file.getName() + "' успешно прочитана (формат: " + detected.getName() + ")");
+                            clipboardCache.put(name, clipboard);
+                            return clipboard;
+                        }
+                    }
+                } catch (Throwable t) {
+                    plugin.getLogger().warning("Автодетект формата (" + detected.getName() + ") вернул ошибку: " + t.getMessage() + ". Пробуем альтернативные парсеры...");
+                }
             }
+        } catch (Throwable ignored) {}
+
+        // 2. Сбор всех кандидатов форматов
+        List<ClipboardFormat> candidates = new ArrayList<>();
+        try {
+            for (BuiltInClipboardFormat b : BuiltInClipboardFormat.values()) {
+                if (b != null && !candidates.contains(b)) {
+                    candidates.add(b);
+                }
+            }
+        } catch (Throwable ignored) {}
+
+        try {
+            for (ClipboardFormat f : ClipboardFormats.getAll()) {
+                if (f != null && !candidates.contains(f)) {
+                    candidates.add(f);
+                }
+            }
+        } catch (Throwable ignored) {}
+
+        for (String alias : new String[]{"sponge", "schem", "mcedit", "schematic", "fast", "fawe"}) {
+            try {
+                ClipboardFormat f = ClipboardFormats.findByAlias(alias);
+                if (f != null && !candidates.contains(f)) {
+                    candidates.add(f);
+                }
+            } catch (Throwable ignored) {}
         }
 
-        Exception lastException = null;
-        for (ClipboardFormat format : formatsToTry) {
-            try (ClipboardReader reader = format.getReader(new FileInputStream(file))) {
+        Throwable lastThrowable = null;
+        for (ClipboardFormat format : candidates) {
+            if (format == null) continue;
+            try (InputStream is = new BufferedInputStream(new FileInputStream(file))) {
+                ClipboardReader reader = format.getReader(is);
+                if (reader == null) {
+                    continue; // Защита от NullPointerException при возврате null reader'а
+                }
                 Clipboard clipboard = reader.read();
                 if (clipboard != null) {
-                    plugin.getLogger().info("Схематика '" + file.getName() + "' успешно прочитана (формат: " + format.getName() + ")");
+                    plugin.getLogger().info("Схематика '" + file.getName() + "' успешно прочитана (парсер: " + format.getName() + ")");
                     clipboardCache.put(name, clipboard);
                     return clipboard;
                 }
-            } catch (Exception e) {
-                lastException = e;
+            } catch (Throwable t) {
+                lastThrowable = t;
             }
         }
 
-        plugin.getLogger().severe("Ошибка при чтении схематики " + file.getName() + ": "
-                + (lastException != null ? lastException.getMessage() : "Не удалось распознать формат"));
+        // 3. Прямая попытка через SpongeSchematicReader (GZIP NBT)
+        try (InputStream is = new BufferedInputStream(new FileInputStream(file))) {
+            GZIPInputStream gzip = new GZIPInputStream(is);
+            NBTInputStream nbt = new NBTInputStream(gzip);
+            SpongeSchematicReader spongeReader = new SpongeSchematicReader(nbt);
+            Clipboard clipboard = spongeReader.read();
+            if (clipboard != null) {
+                plugin.getLogger().info("Схематика '" + file.getName() + "' успешно прочитана через SpongeSchematicReader");
+                clipboardCache.put(name, clipboard);
+                return clipboard;
+            }
+        } catch (Throwable t) {
+            lastThrowable = t;
+        }
+
+        // 4. Прямая попытка через MCEditSchematicReader (GZIP NBT)
+        try (InputStream is = new BufferedInputStream(new FileInputStream(file))) {
+            GZIPInputStream gzip = new GZIPInputStream(is);
+            NBTInputStream nbt = new NBTInputStream(gzip);
+            MCEditSchematicReader mceditReader = new MCEditSchematicReader(nbt);
+            Clipboard clipboard = mceditReader.read();
+            if (clipboard != null) {
+                plugin.getLogger().info("Схематика '" + file.getName() + "' успешно прочитана через MCEditSchematicReader");
+                clipboardCache.put(name, clipboard);
+                return clipboard;
+            }
+        } catch (Throwable t) {
+            lastThrowable = t;
+        }
+
+        plugin.getLogger().severe("Не удалось прочитать схематику " + file.getName() + ": "
+                + (lastThrowable != null ? lastThrowable.getMessage() : "Не удалось распознать формат"));
+        if (lastThrowable != null) {
+            plugin.getLogger().severe("Причина: " + lastThrowable.toString());
+        }
         return null;
     }
 
