@@ -5,27 +5,28 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>ru.rooyzee</groupId>
-    <artifactId>ElytrixAirdrop</artifactId>
+    <artifactId>ElytrixParadise</artifactId>
     <version>1.0</version>
     <packaging>jar</packaging>
-    <name>ElytrixAirdrop</name>
+    <name>ElytrixParadise</name>
 
     <properties>
-        <java.version>17</java.version>
+        <java.version>1.8</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
     <build>
         <defaultGoal>clean package</defaultGoal>
-        <finalName>ElytrixAirdrop</finalName>
+        <finalName>ElytrixParadise</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
+                <version>3.8.1</version>
                 <configuration>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
+                    <encoding>UTF-8</encoding>
                 </configuration>
             </plugin>
         </plugins>
@@ -39,12 +40,12 @@
 
     <repositories>
         <repository>
-            <id>papermc-repo</id>
-            <url>https://repo.papermc.io/repository/maven-public/</url>
-        </repository>
-        <repository>
             <id>spigot-repo</id>
             <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
+        </repository>
+        <repository>
+            <id>papermc-repo</id>
+            <url>https://repo.papermc.io/repository/maven-public/</url>
         </repository>
     </repositories>
 
@@ -53,7 +54,8 @@
             <groupId>org.spigotmc</groupId>
             <artifactId>spigot-api</artifactId>
             <version>1.16.5-R0.1-SNAPSHOT</version>
-            <scope>provided</scope>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/libs/spigot-api-shaded.jar</systemPath>
         </dependency>
 
         <dependency>
@@ -62,6 +64,22 @@
             <version>7.0.5</version>
             <scope>system</scope>
             <systemPath>${project.basedir}/libs/worldguard-bukkit-7.0.5-dist.jar</systemPath>
+        </dependency>
+
+        <dependency>
+            <groupId>com.sk89q.worldedit</groupId>
+            <artifactId>worldedit-bukkit</artifactId>
+            <version>7.2.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/libs/worldedit-bukkit-7.2.0.jar</systemPath>
+        </dependency>
+
+        <dependency>
+            <groupId>com.sk89q.worldedit</groupId>
+            <artifactId>worldedit-core</artifactId>
+            <version>7.2.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/libs/worldedit-core-7.2.0.jar</systemPath>
         </dependency>
 
         <dependency>

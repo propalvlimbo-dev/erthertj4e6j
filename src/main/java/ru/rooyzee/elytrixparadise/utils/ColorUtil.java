@@ -1,0 +1,92 @@
+package ru.rooyzee.elytrixparadise.utils;
+
+import net.md_5.bungee.api.ChatColor;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public final class ColorUtil {
+
+    private static final Pattern HEX_PATTERN = Pattern.compile("&#([A-Fa-f0-9]{6})");
+
+    private ColorUtil() {}
+
+    /**
+     * Translates alternate color codes and hex codes (&#RRGGBB) into Minecraft chat color format.
+     */
+    public static String colorize(String text) {
+        if (text == null) return "";
+        Matcher matcher = HEX_PATTERN.matcher(text);
+        StringBuffer buffer = new StringBuffer();
+        while (matcher.find()) {
+            String hexCode = matcher.group(1);
+            try {
+                matcher.appendReplacement(buffer, ChatColor.of("#" + hexCode).toString());
+            } catch (Exception e) {
+                matcher.appendReplacement(buffer, matcher.group(0));
+            }
+        }
+        matcher.appendTail(buffer);
+        return ChatColor.translateAlternateColorCodes('&', buffer.toString());
+    }
+
+    /**
+     * Colorizes a list of strings.
+     */
+    public static List<String> colorize(List<String> list) {
+        if (list == null) return new ArrayList<>();
+        List<String> result = new ArrayList<>(list.size());
+        for (String line : list) {
+            result.add(colorize(line));
+        }
+        return result;
+    }
+
+    /**
+     * Strips color codes from text.
+     */
+    public static String stripColor(String text) {
+        if (text == null) return "";
+        return ChatColor.stripColor(colorize(text));
+    }
+
+    /**
+     * Formats seconds into MM:SS or HH:MM:SS format.
+     */
+    public static String formatTimeShort(int totalSeconds) {
+        if (totalSeconds < 0) totalSeconds = 0;
+        int hours = totalSeconds / 3600;
+        int minutes = (totalSeconds % 3600) / 60;
+        int seconds = totalSeconds % 60;
+
+        if (hours > 0) {
+            return String.format("%02d:%02d:%02d", hours, minutes, seconds);
+        } else {
+            return String.format("%02d:%02d", minutes, seconds);
+        }
+    }
+
+    /**
+     * Formats seconds into human readable Russian format: e.g. "5 мин 30 сек" or "1 ч 20 мин".
+     */
+    public static String formatTimeRussian(int totalSeconds) {
+        if (totalSeconds <= 0) return "0 сек";
+        int hours = totalSeconds / 3600;
+        int minutes = (totalSeconds % 3600) / 60;
+        int seconds = totalSeconds % 60;
+
+        StringBuilder sb = new StringBuilder();
+        if (hours > 0) {
+            sb.append(hours).append(" ч ");
+        }
+        if (minutes > 0 || hours > 0) {
+            sb.append(minutes).append(" мин ");
+        }
+        if (seconds > 0 || (hours == 0 && minutes == 0)) {
+            sb.append(seconds).append(" сек");
+        }
+        return sb.toString().trim();
+    }
+}
