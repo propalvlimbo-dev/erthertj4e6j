@@ -4,6 +4,7 @@ import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.extent.clipboard.Clipboard;
+import com.sk89q.worldedit.extent.clipboard.io.BuiltInClipboardFormat;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormat;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardReader;
@@ -11,7 +12,6 @@ import com.sk89q.worldedit.function.operation.Operation;
 import com.sk89q.worldedit.function.operation.Operations;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.session.ClipboardHolder;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -20,6 +20,8 @@ import ru.rooyzee.elytrixparadise.Main;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -41,46 +43,76 @@ public class SchematicManager {
         return schematicsFolder;
     }
 
-    public boolean isSchematicPresent(String name) {
+    public File findSchematicFile(String name) {
         File file = new File(schematicsFolder, name);
-        return file.exists() && file.isFile() && file.length() > 0;
+        if (file.exists() && file.isFile()) {
+            return file;
+        }
+
+        // Check alternate extension (.schematic <-> .schem)
+        if (name.toLowerCase().endsWith(".schem")) {
+            File alt = new File(schematicsFolder, name.substring(0, name.length() - 6) + ".schematic");
+            if (alt.exists() && alt.isFile()) return alt;
+        } else if (name.toLowerCase().endsWith(".schematic")) {
+            File alt = new File(schematicsFolder, name.substring(0, name.length() - 10) + ".schem");
+            if (alt.exists() && alt.isFile()) return alt;
+        } else {
+            File alt1 = new File(schematicsFolder, name + ".schem");
+            if (alt1.exists() && alt1.isFile()) return alt1;
+            File alt2 = new File(schematicsFolder, name + ".schematic");
+            if (alt2.exists() && alt2.isFile()) return alt2;
+        }
+
+        return null;
     }
 
     public Clipboard loadSchematic(String name) {
         Clipboard cached = clipboardCache.get(name);
         if (cached != null) return cached;
 
-        File file = new File(schematicsFolder, name);
-        if (!file.exists()) {
+        File file = findSchematicFile(name);
+        if (file == null) {
             plugin.getLogger().warning("Схематика не найдена в папке schematics: " + name);
-            plugin.getLogger().warning("Поместите вашу схематику в: " + file.getAbsolutePath());
+            plugin.getLogger().warning("Поместите вашу схематику в: " + new File(schematicsFolder, name).getAbsolutePath());
             return null;
         }
 
-        ClipboardFormat format = ClipboardFormats.findByFile(file);
-        if (format == null) {
-            plugin.getLogger().warning("Неизвестный формат схематики: " + name);
-            return null;
+        List<ClipboardFormat> formatsToTry = new ArrayList<>();
+        ClipboardFormat primaryFormat = ClipboardFormats.findByFile(file);
+        if (primaryFormat != null) {
+            formatsToTry.add(primaryFormat);
         }
 
-        try (ClipboardReader reader = format.getReader(new FileInputStream(file))) {
-            Clipboard clip = reader.read();
-            clipboardCache.put(name, clip);
-            return clip;
-        } catch (Exception e) {
-            plugin.getLogger().severe("Ошибка при чтении схематики " + name + ": " + e.getMessage());
-            return null;
+        // Add all built-in formats (MCEdit, Sponge, etc.) to ensure legacy & modern formats load without error
+        for (BuiltInClipboardFormat builtIn : BuiltInClipboardFormat.values()) {
+            if (!formatsToTry.contains(builtIn)) {
+                formatsToTry.add(builtIn);
+            }
         }
+
+        Exception lastException = null;
+        for (ClipboardFormat format : formatsToTry) {
+            try (ClipboardReader reader = format.getReader(new FileInputStream(file))) {
+                Clipboard clipboard = reader.read();
+                if (clipboard != null) {
+                    plugin.getLogger().info("Схематика '" + file.getName() + "' успешно прочитана (формат: " + format.getName() + ")");
+                    clipboardCache.put(name, clipboard);
+                    return clipboard;
+                }
+            } catch (Exception e) {
+                lastException = e;
+            }
+        }
+
+        plugin.getLogger().severe("Ошибка при чтении схематики " + file.getName() + ": "
+                + (lastException != null ? lastException.getMessage() : "Не удалось распознать формат"));
+        return null;
     }
 
     public void invalidateCache() {
         clipboardCache.clear();
     }
 
-    /**
-     * Pastes the configured schematic at the specified target location.
-     * If schematic file doesn't exist, generates a fallback cloud paradise platform.
-     */
     public boolean pasteSchematic(String name, Location target) {
         if (target == null || target.getWorld() == null) return false;
 
@@ -88,7 +120,7 @@ public class SchematicManager {
         int chunkX = target.getBlockX() >> 4;
         int chunkZ = target.getBlockZ() >> 4;
 
-        // Ensure chunks in the paste radius are loaded
+        // Ensure chunks in the radius are loaded
         for (int cx = chunkX - 2; cx <= chunkX + 2; cx++) {
             for (int cz = chunkZ - 2; cz <= chunkZ + 2; cz++) {
                 if (!world.isChunkLoaded(cx, cz)) {
@@ -99,9 +131,10 @@ public class SchematicManager {
 
         Clipboard clipboard = loadSchematic(name);
         if (clipboard == null) {
-            plugin.getLogger().info("Схематика '" + name + "' не найдена. Генерируется резервная райская облачная платформа на координатах 0, 0...");
-            generateFallbackCloudIsland(target);
-            return true;
+            plugin.getLogger().info("Схематика не найдена или не загружена. Создаётся стартовая платформа на X=0, Y="
+                    + target.getBlockY() + ", Z=0...");
+            generateFallbackPlatform(target);
+            return false;
         }
 
         try (EditSession editSession = WorldEdit.getInstance()
@@ -122,70 +155,32 @@ public class SchematicManager {
                     .build();
 
             Operations.complete(operation);
-            plugin.getLogger().info("Схематика " + name + " успешно вставлена на координатах "
+            plugin.getLogger().info("Схематика " + name + " успешно вставлена на координаты "
                     + target.getBlockX() + ", " + target.getBlockY() + ", " + target.getBlockZ());
             return true;
         } catch (Exception e) {
             plugin.getLogger().severe("Не удалось вставить схематику " + name + ": " + e.getMessage());
             e.printStackTrace();
-            generateFallbackCloudIsland(target);
             return false;
         }
     }
 
-    /**
-     * Generates a starter cloud island platform when no schematic is provided yet.
-     */
-    public void generateFallbackCloudIsland(Location center) {
+    public void generateFallbackPlatform(Location center) {
         World world = center.getWorld();
         int cx = center.getBlockX();
         int cy = center.getBlockY();
         int cz = center.getBlockZ();
 
-        int radius = 18;
-
+        int radius = 10;
         for (int x = -radius; x <= radius; x++) {
             for (int z = -radius; z <= radius; z++) {
-                double dist = Math.sqrt(x * x + z * z);
-                if (dist <= radius) {
-                    // Cloud bottom fluff (white wool / stained glass)
-                    int fluffHeight = (int) (Math.sin(x * 0.4) * Math.cos(z * 0.4) * 2);
-
-                    for (int y = -2 + fluffHeight; y <= 0; y++) {
-                        Block b = world.getBlockAt(cx + x, cy + y, cz + z);
-                        if (y == 0) {
-                            if (dist < 8) {
-                                b.setType(Material.SMOOTH_QUARTZ, false);
-                            } else if (dist < 14) {
-                                b.setType(Material.WHITE_CONCRETE, false);
-                            } else {
-                                b.setType(Material.WHITE_WOOL, false);
-                            }
-                        } else if (y == -1) {
-                            b.setType(Material.WHITE_STAINED_GLASS, false);
-                        } else {
-                            b.setType(Material.WHITE_STAINED_GLASS, false);
-                        }
-                    }
-
-                    // Gold & Sea lantern pillars at cardinal points
-                    if ((Math.abs(x) == 7 && z == 0) || (Math.abs(z) == 7 && x == 0)) {
-                        world.getBlockAt(cx + x, cy + 1, cz + z).setType(Material.QUARTZ_PILLAR, false);
-                        world.getBlockAt(cx + x, cy + 2, cz + z).setType(Material.QUARTZ_PILLAR, false);
-                        world.getBlockAt(cx + x, cy + 3, cz + z).setType(Material.SEA_LANTERN, false);
-                    }
+                if (x * x + z * z <= radius * radius) {
+                    Block b = world.getBlockAt(cx + x, cy, cz + z);
+                    b.setType(Material.SMOOTH_QUARTZ, false);
                 }
             }
         }
-
-        // Central Altar
         world.getBlockAt(cx, cy, cz).setType(Material.GOLD_BLOCK, false);
         world.getBlockAt(cx, cy + 1, cz).setType(Material.BEACON, false);
-        world.getBlockAt(cx + 1, cy, cz).setType(Material.GOLD_BLOCK, false);
-        world.getBlockAt(cx - 1, cy, cz).setType(Material.GOLD_BLOCK, false);
-        world.getBlockAt(cx, cy, cz + 1).setType(Material.GOLD_BLOCK, false);
-        world.getBlockAt(cx, cy, cz - 1).setType(Material.GOLD_BLOCK, false);
-
-        plugin.getLogger().info("Резервная облачная платформа Рая создана на " + cx + ", " + cy + ", " + cz);
     }
 }

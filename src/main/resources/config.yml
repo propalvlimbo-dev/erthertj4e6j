@@ -1,114 +1,33 @@
 # ============================================================================== #
 #                                                                                #
 #                            ☁ ElytrixParadise Config ☁                          #
-#                    Всегда активный ивент Райских Облаков                       #
+#                    Спавн и управление схематикой Рая                           #
 #                                                                                #
 # ============================================================================== #
 
-# Основная локация Рая
+# Основная локация вставки и спавна Рая
+# По умолчанию: X=0, Y=130, Z=0 в мире 'world'
 location:
   world: "world"
   x: 0
-  y: 60
+  y: 130
   z: 0
   # Точка безопасного спавна игроков при телепортации (/ep tp)
   spawn:
     x: 0.5
-    y: 62.0
+    y: 132.0
     z: 0.5
     yaw: 0.0
     pitch: 0.0
 
 # Настройки схематики
-# Схематику необходимо положить в: plugins/ElytrixParadise/schematics/paradise.schem
+# Файл схематики поместите в: plugins/ElytrixParadise/schematics/paradise.schem
 schematic:
+  # Имя файла схематики в папке schematics/ (поддерживаются как .schem, так и .schematic)
   file: "paradise.schem"
   # Вставлять ли схематику автоматически при запуске плагина / сервера
   paste-on-startup: true
   # Игнорировать ли пустые блоки воздуха при вставке
   ignore-air: true
-  # Смещение по высоте Y при вставке
+  # Дополнительное смещение по высоте Y при вставке
   offset-y: 0
-  # Очищать ли область выше схематики
-  clear-air-above: 20
-
-# Настройки региона защиты (WorldGuard)
-region:
-  enabled: true
-  name: "elytrix_paradise"
-  # Радиус кубоида защиты вокруг центра (0, Y, 0)
-  radius: 60
-  # Базовый режим PvP (если в фазах не переопределено)
-  pvp: false
-  # Запретить получение урона от падения на облаках
-  prevent-fall-damage: true
-  # Запретить разрушение блоков (кроме игроков с elytrixparadise.bypass или admin)
-  prevent-block-break: true
-  # Запретить установку блоков
-  prevent-block-place: true
-  # Запретить спавн обычных мобов
-  prevent-mob-spawning: true
-  # Запретить полёт
-  prevent-flight: false
-  # Спасение при падении в бездну (подхватывает игрока эффектом левитации/медленного падения)
-  void-save: true
-
-# Настройки голограммы (DecentHolograms)
-# Отображается над центром райского острова
-hologram:
-  enabled: true
-  height-offset: 4.5
-  lines:
-    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &f☁"
-    - "&#FFFFA0✦ &#F8BEFBРАЙСКИЕ ОБЛАКА &#FFFFA0✦"
-    - ""
-    - "&7● &fТекущий статус: {phase}"
-    - "&7● &fДо смены фазы: &#FFFFA0{time}"
-    - "&7● &fИгроков в Раю: &#208BFB{players}"
-    - ""
-    - "&eИвент всегда активен!"
-
-# Настройки визуальных и звуковых эффектов
-ambient:
-  cloud-particles: true
-  sounds: true
-  actionbar: true
-
-# Настройки BossBar для игроков в зоне Рая
-bossbar:
-  enabled: true
-  title: "&f☁ &#F8BEFBᴇʟʏᴛʀɪx &#FFFFA0Рай &7| {phase} &7(&f{time}&7)"
-  # Цвета: PINK, BLUE, RED, GREEN, YELLOW, PURPLE, WHITE
-  color: "PURPLE"
-  # Стили: SOLID, SEGMENTED_6, SEGMENTED_10, SEGMENTED_12, SEGMENTED_20
-  style: "SOLID"
-
-# Настройки непрерывного ивента и его фаз
-event:
-  auto-start: true
-  phases:
-    # Фаза 1: Подготовка к небесному явлению
-    waiting:
-      display-name: "&#FFFFA0Подготовка"
-      duration-seconds: 300
-      pvp: false
-    # Фаза 2: Активное действие / небесный заряд
-    active:
-      display-name: "&#208BFBАктивен"
-      duration-seconds: 900
-      pvp: true
-    # Фаза 3: Кульминация / максимальная активность
-    climax:
-      display-name: "&#F8BEFBКульминация"
-      duration-seconds: 300
-      pvp: true
-    # Фаза 4: Раздача райских даров / сундуки
-    reward:
-      display-name: "&#A0FFA0Награда"
-      duration-seconds: 180
-      pvp: false
-    # Фаза 5: Перезарядка острова
-    cooldown:
-      display-name: "&#AAAAAAПерезарядка"
-      duration-seconds: 120
-      pvp: false

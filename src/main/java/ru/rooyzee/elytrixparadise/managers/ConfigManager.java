@@ -37,7 +37,6 @@ public class ConfigManager {
         }
         this.messages = YamlConfiguration.loadConfiguration(messagesFile);
 
-        // Merge missing default keys in messages.yml if needed
         InputStream defStream = plugin.getResource("messages.yml");
         if (defStream != null) {
             YamlConfiguration defConfig = YamlConfiguration.loadConfiguration(new InputStreamReader(defStream, StandardCharsets.UTF_8));
@@ -61,7 +60,6 @@ public class ConfigManager {
         return messages;
     }
 
-    // World & Location settings
     public String getWorldName() {
         return config.getString("location.world", "world");
     }
@@ -77,7 +75,7 @@ public class ConfigManager {
     }
 
     public int getCenterY() {
-        return config.getInt("location.y", 60);
+        return config.getInt("location.y", 130);
     }
 
     public int getCenterZ() {
@@ -114,7 +112,6 @@ public class ConfigManager {
         plugin.saveConfig();
     }
 
-    // Schematic settings
     public String getSchematicFile() {
         return config.getString("schematic.file", "paradise.schem");
     }
@@ -127,95 +124,10 @@ public class ConfigManager {
         return config.getBoolean("schematic.ignore-air", true);
     }
 
-    public int getClearAbove() {
-        return config.getInt("schematic.clear-air-above", 20);
-    }
-
     public int getSchematicOffsetY() {
         return config.getInt("schematic.offset-y", 0);
     }
 
-    // Region settings
-    public boolean isRegionEnabled() {
-        return config.getBoolean("region.enabled", true);
-    }
-
-    public String getRegionName() {
-        return config.getString("region.name", "elytrix_paradise");
-    }
-
-    public int getRegionRadius() {
-        return config.getInt("region.radius", 60);
-    }
-
-    public boolean isPreventFallDamage() {
-        return config.getBoolean("region.prevent-fall-damage", true);
-    }
-
-    public boolean isPreventBlockBreak() {
-        return config.getBoolean("region.prevent-block-break", true);
-    }
-
-    public boolean isPreventBlockPlace() {
-        return config.getBoolean("region.prevent-block-place", true);
-    }
-
-    public boolean isPreventMobSpawning() {
-        return config.getBoolean("region.prevent-mob-spawning", true);
-    }
-
-    public boolean isPreventFlight() {
-        return config.getBoolean("region.prevent-flight", false);
-    }
-
-    public boolean isVoidSaveEnabled() {
-        return config.getBoolean("region.void-save", true);
-    }
-
-    // Hologram settings
-    public boolean isHologramEnabled() {
-        return config.getBoolean("hologram.enabled", true);
-    }
-
-    public double getHologramHeightOffset() {
-        return config.getDouble("hologram.height-offset", 4.0);
-    }
-
-    public List<String> getHologramLines() {
-        return config.getStringList("hologram.lines");
-    }
-
-    // Ambient settings
-    public boolean isCloudsParticlesEnabled() {
-        return config.getBoolean("ambient.cloud-particles", true);
-    }
-
-    public boolean isAmbientSoundEnabled() {
-        return config.getBoolean("ambient.sounds", true);
-    }
-
-    public boolean isActionbarEnabled() {
-        return config.getBoolean("ambient.actionbar", true);
-    }
-
-    // BossBar settings
-    public boolean isBossBarEnabled() {
-        return config.getBoolean("bossbar.enabled", true);
-    }
-
-    public String getBossBarTitle() {
-        return config.getString("bossbar.title", "&f☁ &#F8BEFBᴇʟʏᴛʀɪx &#FFFFA0Рай &7| {phase} &7(&f{time}&7)");
-    }
-
-    public String getBossBarColor() {
-        return config.getString("bossbar.color", "PURPLE");
-    }
-
-    public String getBossBarStyle() {
-        return config.getString("bossbar.style", "SOLID");
-    }
-
-    // Messages
     public String getPrefix() {
         return ColorUtil.colorize(messages.getString("prefix", "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &#FFFFA0Рай &7» "));
     }
