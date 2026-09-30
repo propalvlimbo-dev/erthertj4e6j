@@ -32,9 +32,23 @@ public class RegionManager {
             int cx = center.getBlockX();
             int cz = center.getBlockZ();
 
-            // Расширенный регион: 150 блоков в стороны, от самого низа (-64) до самого верха (320)
-            int effectiveMinY = Math.min(-64, world.getMinHeight());
-            int effectiveMaxY = Math.max(320, world.getMaxHeight());
+            int worldMinY = 0;
+            try {
+                worldMinY = world.getMinHeight();
+            } catch (Throwable ignored) {
+                worldMinY = 0;
+            }
+
+            int worldMaxY = 255;
+            try {
+                worldMaxY = world.getMaxHeight();
+            } catch (Throwable ignored) {
+                worldMaxY = 255;
+            }
+
+            // Расширенный регион: 150 блоков в стороны, от самого низа до самого верха
+            int effectiveMinY = Math.min(-64, worldMinY);
+            int effectiveMaxY = Math.max(320, worldMaxY);
 
             BlockVector3 min = BlockVector3.at(cx - radiusXZ, effectiveMinY, cz - radiusXZ);
             BlockVector3 max = BlockVector3.at(cx + radiusXZ, effectiveMaxY, cz + radiusXZ);

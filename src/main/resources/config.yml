@@ -19,13 +19,13 @@ schematic:
 
 actionbar:
   radius-xz: 150.0
-  min-y: 50.0
-  max-y: 300.0
+  min-y: 0.0
+  max-y: 256.0
 
 shards:
   scan-radius-xz: 150
-  scan-min-y: 50
-  scan-max-y: 300
+  scan-min-y: 0
+  scan-max-y: 255
   cooldown-seconds: 600
   base-explosion-chance: 2.0
   chance-increase-per-hit: 1.5

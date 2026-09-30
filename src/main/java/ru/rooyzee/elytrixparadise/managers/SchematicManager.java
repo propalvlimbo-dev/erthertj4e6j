@@ -1,22 +1,18 @@
 package ru.rooyzee.elytrixparadise.managers;
 
-import com.sk89q.jnbt.NBTInputStream;
 import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.extent.clipboard.Clipboard;
-import com.sk89q.worldedit.extent.clipboard.io.BuiltInClipboardFormat;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormat;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardReader;
-import com.sk89q.worldedit.extent.clipboard.io.MCEditSchematicReader;
-import com.sk89q.worldedit.extent.clipboard.io.SpongeSchematicReader;
 import com.sk89q.worldedit.function.operation.Operation;
 import com.sk89q.worldedit.function.operation.Operations;
 import com.sk89q.worldedit.math.BlockVector3;
-import com.sk89q.worldedit.regions.CuboidRegion;
 import com.sk89q.worldedit.session.ClipboardHolder;
 import com.sk89q.worldedit.world.block.BlockTypes;
+import com.sk89q.worldedit.regions.CuboidRegion;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -28,11 +24,10 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.zip.GZIPInputStream;
 
 public class SchematicManager {
 
@@ -56,146 +51,123 @@ public class SchematicManager {
         return schematicsFolder;
     }
 
-    public File findSchematicFile(String name) {
-        File file = new File(schematicsFolder, name);
-        if (file.exists() && file.isFile()) {
-            return file;
-        }
-
-        // Check alternate extensions (.schematic <-> .schem)
-        if (name.toLowerCase().endsWith(".schem")) {
-            File alt = new File(schematicsFolder, name.substring(0, name.length() - 6) + ".schematic");
-            if (alt.exists() && alt.isFile()) return alt;
-        } else if (name.toLowerCase().endsWith(".schematic")) {
-            File alt = new File(schematicsFolder, name.substring(0, name.length() - 10) + ".schem");
-            if (alt.exists() && alt.isFile()) return alt;
-        } else {
-            File alt1 = new File(schematicsFolder, name + ".schem");
-            if (alt1.exists() && alt1.isFile()) return alt1;
-            File alt2 = new File(schematicsFolder, name + ".schematic");
-            if (alt2.exists() && alt2.isFile()) return alt2;
-        }
-
-        return null;
-    }
-
     public Clipboard loadSchematic(String name) {
-        Clipboard cached = clipboardCache.get(name);
-        if (cached != null) return cached;
-
-        File file = findSchematicFile(name);
-        if (file == null) {
-            plugin.getLogger().warning("Схематика не найдена в папке schematics: " + name);
-            plugin.getLogger().warning("Поместите файл вашей схематики в: " + new File(schematicsFolder, name).getAbsolutePath());
-            return null;
+        if (!name.endsWith(".schem") && !name.endsWith(".schematic")) {
+            name = name + ".schem";
         }
 
-        plugin.getLogger().info("Загрузка схематики '" + file.getName() + "' (размер: " + file.length() + " байт)...");
+        File file = new File(schematicsFolder, name);
+        if (!file.exists()) {
+            File altFile = new File(plugin.getDataFolder(), name);
+            if (altFile.exists()) {
+                file = altFile;
+            } else {
+                plugin.getLogger().warning("Файл схематики '" + name + "' не найден в папке plugins/ElytrixParadise/schematics/!");
+                return null;
+            }
+        }
 
-        // 1. Стандартный автодетект по файлу
+        if (clipboardCache.containsKey(file.getAbsolutePath())) {
+            return clipboardCache.get(file.getAbsolutePath());
+        }
+
+        plugin.getLogger().info("Загрузка схематики '" + name + "' (размер: " + file.length() + " байт)...");
+
+        // Strategy 1: WorldEdit standard ClipboardFormats.findByFile
         try {
-            ClipboardFormat detected = ClipboardFormats.findByFile(file);
-            if (detected != null) {
-                Clipboard clip = tryReadWithFormat(detected, file);
-                if (clip != null) {
-                    plugin.getLogger().info("✓ Схематика '" + file.getName() + "' успешно загружена (формат: " + detected.getName() + ")");
-                    clipboardCache.put(name, clip);
-                    return clip;
+            ClipboardFormat format = ClipboardFormats.findByFile(file);
+            if (format != null) {
+                Clipboard clipboard = tryReadWithFormat(format, file);
+                if (clipboard != null) {
+                    clipboardCache.put(file.getAbsolutePath(), clipboard);
+                    plugin.getLogger().info("✓ Схематика '" + name + "' успешно загружена (формат: " + format.getName() + ")");
+                    return clipboard;
                 }
             }
         } catch (Throwable t) {
-            plugin.getLogger().warning("Автодетект формата выдал ошибку: " + t.getMessage());
+            plugin.getLogger().warning("Метод ClipboardFormats.findByFile не сработал: " + t.getMessage());
         }
 
-        // 2. Перебор зарегистрированных форматов
-        List<ClipboardFormat> candidateFormats = new ArrayList<>();
+        // Strategy 2: Iterate over BuiltInClipboardFormat enum values
         try {
-            for (ClipboardFormat f : ClipboardFormats.getAll()) {
-                if (f != null && !candidateFormats.contains(f)) {
-                    candidateFormats.add(f);
+            Class<?> builtInClass = Class.forName("com.sk89q.worldedit.extent.clipboard.io.BuiltInClipboardFormat");
+            if (builtInClass.isEnum()) {
+                Object[] constants = builtInClass.getEnumConstants();
+                if (constants != null) {
+                    for (Object constant : constants) {
+                        if (constant instanceof ClipboardFormat) {
+                            ClipboardFormat fmt = (ClipboardFormat) constant;
+                            Clipboard clipboard = tryReadWithFormat(fmt, file);
+                            if (clipboard != null) {
+                                clipboardCache.put(file.getAbsolutePath(), clipboard);
+                                plugin.getLogger().info("✓ Схематика '" + name + "' успешно загружена через BuiltIn (" + fmt.getName() + ")");
+                                return clipboard;
+                            }
+                        }
+                    }
                 }
             }
         } catch (Throwable ignored) {}
 
-        for (String alias : new String[]{"sponge", "schem", "mcedit", "schematic", "fast", "fawe"}) {
+        // Strategy 3: Check FastAsyncWorldEdit FAWE formats
+        try {
+            Class<?> fastFormatsClass = Class.forName("com.fastasyncworldedit.core.extent.clipboard.io.FastClipboardFormats");
+            for (Field field : fastFormatsClass.getDeclaredFields()) {
+                if (ClipboardFormat.class.isAssignableFrom(field.getType())) {
+                    field.setAccessible(true);
+                    ClipboardFormat fmt = (ClipboardFormat) field.get(null);
+                    if (fmt != null) {
+                        Clipboard clipboard = tryReadWithFormat(fmt, file);
+                        if (clipboard != null) {
+                            clipboardCache.put(file.getAbsolutePath(), clipboard);
+                            plugin.getLogger().info("✓ Схематика '" + name + "' успешно загружена через FAWE FastClipboardFormats (" + fmt.getName() + ")");
+                            return clipboard;
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+
+        // Strategy 4: Direct instantiation of known format classes
+        String[] readerClassNames = new String[] {
+                "com.sk89q.worldedit.extent.clipboard.io.SpongeSchematicReader",
+                "com.sk89q.worldedit.extent.clipboard.io.FastSchematicReader",
+                "com.sk89q.worldedit.extent.clipboard.io.SchematicReader",
+                "com.fastasyncworldedit.core.extent.clipboard.io.FastSchematicReader"
+        };
+
+        for (String className : readerClassNames) {
             try {
-                ClipboardFormat f = ClipboardFormats.findByAlias(alias);
-                if (f != null && !candidateFormats.contains(f)) {
-                    candidateFormats.add(f);
+                Class<?> clazz = Class.forName(className);
+                try (InputStream fis = new FileInputStream(file);
+                     BufferedInputStream bis = new BufferedInputStream(fis)) {
+                    ClipboardReader reader = null;
+                    try {
+                        reader = (ClipboardReader) clazz.getConstructor(InputStream.class).newInstance(bis);
+                    } catch (Throwable t2) {
+                        try {
+                            reader = (ClipboardReader) clazz.getConstructor(BufferedInputStream.class).newInstance(bis);
+                        } catch (Throwable ignored) {}
+                    }
+
+                    if (reader != null) {
+                        try {
+                            Clipboard cb = reader.read();
+                            if (cb != null) {
+                                reader.close();
+                                clipboardCache.put(file.getAbsolutePath(), cb);
+                                plugin.getLogger().info("✓ Схематика '" + name + "' загружена через прямой ридер " + className);
+                                return cb;
+                            }
+                        } finally {
+                            try {
+                                reader.close();
+                            } catch (Throwable ignored) {}
+                        }
+                    }
                 }
             } catch (Throwable ignored) {}
         }
-
-        try {
-            for (BuiltInClipboardFormat b : BuiltInClipboardFormat.values()) {
-                if (b != null && !candidateFormats.contains(b)) {
-                    candidateFormats.add(b);
-                }
-            }
-        } catch (Throwable ignored) {}
-
-        for (ClipboardFormat format : candidateFormats) {
-            if (format == null) continue;
-            Clipboard clip = tryReadWithFormat(format, file);
-            if (clip != null) {
-                plugin.getLogger().info("✓ Схематика '" + file.getName() + "' успешно загружена (парсер: " + format.getName() + ")");
-                clipboardCache.put(name, clip);
-                return clip;
-            }
-        }
-
-        // 3. Прямой SpongeSchematicReader (GZIP NBT)
-        try (InputStream fis = new FileInputStream(file);
-             BufferedInputStream bis = new BufferedInputStream(fis);
-             GZIPInputStream gzip = new GZIPInputStream(bis);
-             NBTInputStream nbt = new NBTInputStream(gzip)) {
-            SpongeSchematicReader spongeReader = new SpongeSchematicReader(nbt);
-            Clipboard clipboard = spongeReader.read();
-            if (clipboard != null) {
-                plugin.getLogger().info("✓ Схематика '" + file.getName() + "' успешно загружена через SpongeSchematicReader");
-                clipboardCache.put(name, clipboard);
-                return clipboard;
-            }
-        } catch (Throwable ignored) {}
-
-        // 4. Прямой MCEditSchematicReader (GZIP NBT)
-        try (InputStream fis = new FileInputStream(file);
-             BufferedInputStream bis = new BufferedInputStream(fis);
-             GZIPInputStream gzip = new GZIPInputStream(bis);
-             NBTInputStream nbt = new NBTInputStream(gzip)) {
-            MCEditSchematicReader mceditReader = new MCEditSchematicReader(nbt);
-            Clipboard clipboard = mceditReader.read();
-            if (clipboard != null) {
-                plugin.getLogger().info("✓ Схематика '" + file.getName() + "' успешно загружена через MCEditSchematicReader");
-                clipboardCache.put(name, clipboard);
-                return clipboard;
-            }
-        } catch (Throwable ignored) {}
-
-        // 5. Прямой Raw NBT (если без сжатия)
-        try (InputStream fis = new FileInputStream(file);
-             BufferedInputStream bis = new BufferedInputStream(fis);
-             NBTInputStream nbt = new NBTInputStream(bis)) {
-            SpongeSchematicReader spongeReader = new SpongeSchematicReader(nbt);
-            Clipboard clipboard = spongeReader.read();
-            if (clipboard != null) {
-                plugin.getLogger().info("✓ Схематика '" + file.getName() + "' успешно загружена (Raw NBT Sponge)");
-                clipboardCache.put(name, clipboard);
-                return clipboard;
-            }
-        } catch (Throwable ignored) {}
-
-        try (InputStream fis = new FileInputStream(file);
-             BufferedInputStream bis = new BufferedInputStream(fis);
-             NBTInputStream nbt = new NBTInputStream(bis)) {
-            MCEditSchematicReader mceditReader = new MCEditSchematicReader(nbt);
-            Clipboard clipboard = mceditReader.read();
-            if (clipboard != null) {
-                plugin.getLogger().info("✓ Схематика '" + file.getName() + "' успешно загружена (Raw NBT MCEdit)");
-                clipboardCache.put(name, clipboard);
-                return clipboard;
-            }
-        } catch (Throwable ignored) {}
 
         plugin.getLogger().severe("✗ Не удалось прочитать файл схематики " + file.getName() + " ни одним из форматов.");
         return null;
@@ -291,9 +263,31 @@ public class SchematicManager {
         World world = center.getWorld();
         if (world == null) return 0;
 
-        int radiusXZ = plugin.getConfigManager().getScanRadiusXZ(); // 120 blocks
-        int minY = plugin.getConfigManager().getScanMinY(); // 140
-        int maxY = plugin.getConfigManager().getScanMaxY(); // 215
+        int radiusXZ = plugin.getConfigManager().getScanRadiusXZ();
+        int configMinY = plugin.getConfigManager().getScanMinY();
+        int configMaxY = plugin.getConfigManager().getScanMaxY();
+
+        int worldMinY = 0;
+        try {
+            worldMinY = world.getMinHeight();
+        } catch (Throwable ignored) {
+            worldMinY = 0;
+        }
+
+        int worldMaxY = 255;
+        try {
+            worldMaxY = world.getMaxHeight() - 1;
+        } catch (Throwable ignored) {
+            worldMaxY = 255;
+        }
+
+        int minY = Math.max(worldMinY, Math.min(worldMaxY, configMinY));
+        int maxY = Math.max(worldMinY, Math.min(worldMaxY, configMaxY));
+        if (minY > maxY) {
+            int tmp = minY;
+            minY = maxY;
+            maxY = tmp;
+        }
 
         int cx = center.getBlockX();
         int cz = center.getBlockZ();
@@ -317,12 +311,14 @@ public class SchematicManager {
                         int worldZ = (chZ << 4) + z;
                         if (Math.abs(worldZ - cz) > radiusXZ) continue;
                         for (int y = minY; y <= maxY; y++) {
-                            Block b = chunk.getBlock(x, y, z);
-                            Material type = b.getType();
-                            if (type == Material.RED_GLAZED_TERRACOTTA || type == Material.GRAY_GLAZED_TERRACOTTA) {
-                                plugin.getShardManager().registerShard(new Location(world, worldX, y, worldZ));
-                                found++;
-                            }
+                            try {
+                                Block b = chunk.getBlock(x, y, z);
+                                Material type = b.getType();
+                                if (type == Material.RED_GLAZED_TERRACOTTA || type == Material.GRAY_GLAZED_TERRACOTTA) {
+                                    plugin.getShardManager().registerShard(new Location(world, worldX, y, worldZ));
+                                    found++;
+                                }
+                            } catch (Throwable ignored) {}
                         }
                     }
                 }
@@ -351,8 +347,17 @@ public class SchematicManager {
             plugin.getLogger().info("Область схематики Райского места очищена.");
         } catch (Throwable t) {
             try {
+                int worldMinY = 0;
+                int worldMaxY = 255;
+                try {
+                    worldMinY = lastPastedWorld.getMinHeight();
+                } catch (Throwable ignored) {}
+                try {
+                    worldMaxY = lastPastedWorld.getMaxHeight() - 1;
+                } catch (Throwable ignored) {}
+
                 for (int x = lastPastedMin.getX(); x <= lastPastedMax.getX(); x++) {
-                    for (int y = lastPastedMin.getY(); y <= lastPastedMax.getY(); y++) {
+                    for (int y = Math.max(worldMinY, lastPastedMin.getY()); y <= Math.min(worldMaxY, lastPastedMax.getY()); y++) {
                         for (int z = lastPastedMin.getZ(); z <= lastPastedMax.getZ(); z++) {
                             Block b = lastPastedWorld.getBlockAt(x, y, z);
                             if (b.getType() != Material.AIR) {
