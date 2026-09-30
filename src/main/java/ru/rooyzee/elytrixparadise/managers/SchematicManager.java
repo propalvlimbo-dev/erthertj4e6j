@@ -14,7 +14,9 @@ import com.sk89q.worldedit.extent.clipboard.io.SpongeSchematicReader;
 import com.sk89q.worldedit.function.operation.Operation;
 import com.sk89q.worldedit.function.operation.Operations;
 import com.sk89q.worldedit.math.BlockVector3;
+import com.sk89q.worldedit.regions.CuboidRegion;
 import com.sk89q.worldedit.session.ClipboardHolder;
+import com.sk89q.worldedit.world.block.BlockTypes;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -37,6 +39,10 @@ public class SchematicManager {
     private final File schematicsFolder;
     private final Map<String, Clipboard> clipboardCache = new ConcurrentHashMap<>();
 
+    private BlockVector3 lastPastedMin = null;
+    private BlockVector3 lastPastedMax = null;
+    private World lastPastedWorld = null;
+
     public SchematicManager(Main plugin) {
         this.plugin = plugin;
         this.schematicsFolder = new File(plugin.getDataFolder(), "schematics");
@@ -55,7 +61,7 @@ public class SchematicManager {
             return file;
         }
 
-        // Check alternate extension (.schematic <-> .schem)
+        // Check alternate extensions (.schematic <-> .schem)
         if (name.toLowerCase().endsWith(".schem")) {
             File alt = new File(schematicsFolder, name.substring(0, name.length() - 6) + ".schematic");
             if (alt.exists() && alt.isFile()) return alt;
@@ -85,7 +91,7 @@ public class SchematicManager {
 
         plugin.getLogger().info("Загрузка схематики '" + file.getName() + "' (размер: " + file.length() + " байт)...");
 
-        // 1. Попытка стандартного автоопределения формата по файлу
+        // 1. Стандартный автодетект по файлу
         try {
             ClipboardFormat detected = ClipboardFormats.findByFile(file);
             if (detected != null) {
@@ -100,7 +106,7 @@ public class SchematicManager {
             plugin.getLogger().warning("Автодетект формата выдал ошибку: " + t.getMessage());
         }
 
-        // 2. Сбор кандидатов форматов
+        // 2. Перебор зарегистрированных форматов
         List<ClipboardFormat> candidateFormats = new ArrayList<>();
         try {
             for (ClipboardFormat f : ClipboardFormats.getAll()) {
@@ -137,7 +143,7 @@ public class SchematicManager {
             }
         }
 
-        // 3. Прямая попытка через SpongeSchematicReader (GZIP NBT)
+        // 3. Прямой SpongeSchematicReader (GZIP NBT)
         try (InputStream fis = new FileInputStream(file);
              BufferedInputStream bis = new BufferedInputStream(fis);
              GZIPInputStream gzip = new GZIPInputStream(bis);
@@ -151,7 +157,7 @@ public class SchematicManager {
             }
         } catch (Throwable ignored) {}
 
-        // 4. Прямая попытка через MCEditSchematicReader (GZIP NBT)
+        // 4. Прямой MCEditSchematicReader (GZIP NBT)
         try (InputStream fis = new FileInputStream(file);
              BufferedInputStream bis = new BufferedInputStream(fis);
              GZIPInputStream gzip = new GZIPInputStream(bis);
@@ -165,7 +171,7 @@ public class SchematicManager {
             }
         } catch (Throwable ignored) {}
 
-        // 5. Прямая попытка без GZIP (если файл уже распакованный NBT)
+        // 5. Прямой Raw NBT (если без сжатия)
         try (InputStream fis = new FileInputStream(file);
              BufferedInputStream bis = new BufferedInputStream(fis);
              NBTInputStream nbt = new NBTInputStream(bis)) {
@@ -191,7 +197,6 @@ public class SchematicManager {
         } catch (Throwable ignored) {}
 
         plugin.getLogger().severe("✗ Не удалось прочитать файл схематики " + file.getName() + " ни одним из форматов.");
-        plugin.getLogger().severe("Убедитесь, что файл не повреждён и создан в WorldEdit / FAWE.");
         return null;
     }
 
@@ -227,8 +232,8 @@ public class SchematicManager {
         int chunkZ = target.getBlockZ() >> 4;
 
         // Ensure chunks in the radius are loaded
-        for (int cx = chunkX - 2; cx <= chunkX + 2; cx++) {
-            for (int cz = chunkZ - 2; cz <= chunkZ + 2; cz++) {
+        for (int cx = chunkX - 3; cx <= chunkX + 3; cx++) {
+            for (int cz = chunkZ - 3; cz <= chunkZ + 3; cz++) {
                 if (!world.isChunkLoaded(cx, cz)) {
                     world.getChunkAt(cx, cz);
                 }
@@ -237,9 +242,7 @@ public class SchematicManager {
 
         Clipboard clipboard = loadSchematic(name);
         if (clipboard == null) {
-            plugin.getLogger().info("Схематика не найдена или не загружена. Создаётся стартовая платформа на X=0, Y="
-                    + target.getBlockY() + ", Z=0...");
-            generateFallbackPlatform(target);
+            plugin.getLogger().warning("Схематика не загружена. Вставка пропущена (дополнительные блоки не создаются).");
             return false;
         }
 
@@ -261,8 +264,19 @@ public class SchematicManager {
                     .build();
 
             Operations.complete(operation);
-            plugin.getLogger().info("Схематика " + name + " успешно вставлена на координаты "
-                    + target.getBlockX() + ", " + target.getBlockY() + ", " + target.getBlockZ());
+
+            // Compute bounding box for shard scanning and cleanup on disable
+            BlockVector3 origin = clipboard.getOrigin();
+            this.lastPastedMin = clipboard.getMinimumPoint().subtract(origin).add(to);
+            this.lastPastedMax = clipboard.getMaximumPoint().subtract(origin).add(to);
+            this.lastPastedWorld = world;
+
+            plugin.getLogger().info("✓ Схематика " + name + " успешно вставлена на координаты X="
+                    + target.getBlockX() + ", Y=" + (target.getBlockY() + offsetY) + ", Z=" + target.getBlockZ());
+
+            // Scan and register Red Glazed Terracotta Shards of Paradise
+            scanAndRegisterShards();
+
             return true;
         } catch (Exception e) {
             plugin.getLogger().severe("Не удалось вставить схематику " + name + ": " + e.getMessage());
@@ -271,22 +285,93 @@ public class SchematicManager {
         }
     }
 
-    public void generateFallbackPlatform(Location center) {
+    public void scanAndRegisterShards() {
+        if (lastPastedMin == null || lastPastedMax == null || lastPastedWorld == null) {
+            // Fallback scan around center
+            Location center = plugin.getConfigManager().getCenterLocation();
+            scanAroundLocation(center, 40, 20);
+            return;
+        }
+
+        int minX = lastPastedMin.getX() - 2;
+        int maxX = lastPastedMax.getX() + 2;
+        int minY = Math.max(1, lastPastedMin.getY() - 2);
+        int maxY = Math.min(255, lastPastedMax.getY() + 2);
+        int minZ = lastPastedMin.getZ() - 2;
+        int maxZ = lastPastedMax.getZ() + 2;
+
+        int found = 0;
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    Block b = lastPastedWorld.getBlockAt(x, y, z);
+                    if (b.getType() == Material.RED_GLAZED_TERRACOTTA || b.getType() == Material.GRAY_GLAZED_TERRACOTTA) {
+                        plugin.getShardManager().registerShard(new Location(lastPastedWorld, x, y, z));
+                        found++;
+                    }
+                }
+            }
+        }
+        plugin.getLogger().info("Найдено и зарегистрировано Осколков Рая: " + found);
+    }
+
+    private void scanAroundLocation(Location center, int radiusXZ, int radiusY) {
         World world = center.getWorld();
         int cx = center.getBlockX();
         int cy = center.getBlockY();
         int cz = center.getBlockZ();
 
-        int radius = 10;
-        for (int x = -radius; x <= radius; x++) {
-            for (int z = -radius; z <= radius; z++) {
-                if (x * x + z * z <= radius * radius) {
-                    Block b = world.getBlockAt(cx + x, cy, cz + z);
-                    b.setType(Material.SMOOTH_QUARTZ, false);
+        int found = 0;
+        for (int x = cx - radiusXZ; x <= cx + radiusXZ; x++) {
+            for (int y = cy - radiusY; y <= cy + radiusY; y++) {
+                for (int z = cz - radiusXZ; z <= cz + radiusXZ; z++) {
+                    Block b = world.getBlockAt(x, y, z);
+                    if (b.getType() == Material.RED_GLAZED_TERRACOTTA || b.getType() == Material.GRAY_GLAZED_TERRACOTTA) {
+                        plugin.getShardManager().registerShard(new Location(world, x, y, z));
+                        found++;
+                    }
                 }
             }
         }
-        world.getBlockAt(cx, cy, cz).setType(Material.GOLD_BLOCK, false);
-        world.getBlockAt(cx, cy + 1, cz).setType(Material.BEACON, false);
+        plugin.getLogger().info("Найдено и зарегистрировано Осколков Рая вокруг центра: " + found);
+    }
+
+    public void clearSchematic() {
+        // 1. Remove all shard holograms and states
+        if (plugin.getShardManager() != null) {
+            plugin.getShardManager().clearAllShards();
+        }
+
+        if (lastPastedMin == null || lastPastedMax == null || lastPastedWorld == null) {
+            return;
+        }
+
+        try (EditSession editSession = WorldEdit.getInstance()
+                .getEditSessionFactory()
+                .getEditSession(BukkitAdapter.adapt(lastPastedWorld), -1)) {
+
+            CuboidRegion region = new CuboidRegion(lastPastedMin, lastPastedMax);
+            editSession.setBlocks(region, BlockTypes.AIR.getDefaultState());
+            plugin.getLogger().info("Область схематики Райского места очищена.");
+        } catch (Throwable t) {
+            // Fallback block clearing
+            try {
+                for (int x = lastPastedMin.getX(); x <= lastPastedMax.getX(); x++) {
+                    for (int y = lastPastedMin.getY(); y <= lastPastedMax.getY(); y++) {
+                        for (int z = lastPastedMin.getZ(); z <= lastPastedMax.getZ(); z++) {
+                            Block b = lastPastedWorld.getBlockAt(x, y, z);
+                            if (b.getType() != Material.AIR) {
+                                b.setType(Material.AIR, false);
+                            }
+                        }
+                    }
+                }
+                plugin.getLogger().info("Область схематики очищена вручную.");
+            } catch (Throwable ignored) {}
+        }
+
+        lastPastedMin = null;
+        lastPastedMax = null;
+        lastPastedWorld = null;
     }
 }

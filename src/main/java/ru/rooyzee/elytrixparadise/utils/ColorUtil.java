@@ -1,6 +1,9 @@
 package ru.rooyzee.elytrixparadise.utils;
 
 import net.md_5.bungee.api.ChatColor;
+import net.md_5.bungee.api.ChatMessageType;
+import net.md_5.bungee.api.chat.TextComponent;
+import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,40 +56,20 @@ public final class ColorUtil {
     }
 
     /**
-     * Formats seconds into MM:SS or HH:MM:SS format.
+     * Sends action bar message to a player in a cross-compatible way (Spigot & Paper 1.16.5 - 1.20+).
      */
-    public static String formatTimeShort(int totalSeconds) {
-        if (totalSeconds < 0) totalSeconds = 0;
-        int hours = totalSeconds / 3600;
-        int minutes = (totalSeconds % 3600) / 60;
-        int seconds = totalSeconds % 60;
-
-        if (hours > 0) {
-            return String.format("%02d:%02d:%02d", hours, minutes, seconds);
-        } else {
-            return String.format("%02d:%02d", minutes, seconds);
-        }
+    public static void sendActionBar(Player player, String message) {
+        if (player == null || message == null) return;
+        player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText(colorize(message)));
     }
 
     /**
-     * Formats seconds into human readable Russian format: e.g. "5 мин 30 сек" or "1 ч 20 мин".
+     * Formats seconds into MM:SS format.
      */
-    public static String formatTimeRussian(int totalSeconds) {
-        if (totalSeconds <= 0) return "0 сек";
-        int hours = totalSeconds / 3600;
-        int minutes = (totalSeconds % 3600) / 60;
+    public static String formatTimeShort(int totalSeconds) {
+        if (totalSeconds < 0) totalSeconds = 0;
+        int minutes = totalSeconds / 60;
         int seconds = totalSeconds % 60;
-
-        StringBuilder sb = new StringBuilder();
-        if (hours > 0) {
-            sb.append(hours).append(" ч ");
-        }
-        if (minutes > 0 || hours > 0) {
-            sb.append(minutes).append(" мин ");
-        }
-        if (seconds > 0 || (hours == 0 && minutes == 0)) {
-            sb.append(seconds).append(" сек");
-        }
-        return sb.toString().trim();
+        return String.format("%02d:%02d", minutes, seconds);
     }
 }

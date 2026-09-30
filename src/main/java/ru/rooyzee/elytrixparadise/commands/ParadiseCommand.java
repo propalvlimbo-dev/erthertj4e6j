@@ -7,12 +7,14 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import ru.rooyzee.elytrixparadise.Main;
+import ru.rooyzee.elytrixparadise.managers.ConfigManager;
 import ru.rooyzee.elytrixparadise.utils.ColorUtil;
 
-import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class ParadiseCommand implements CommandExecutor, TabCompleter {
 
@@ -24,184 +26,137 @@ public class ParadiseCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        ConfigManager cm = plugin.getConfigManager();
+        String adminPrefix = cm.getAdminPrefix();
+        String playerPrefix = cm.getPlayerPrefix();
+
         if (args.length == 0 || args[0].equalsIgnoreCase("help")) {
-            sendHelp(sender);
+            for (String line : cm.getMessageList("help")) {
+                sender.sendMessage(line);
+            }
             return true;
         }
 
         String sub = args[0].toLowerCase();
 
-        switch (sub) {
-            case "reload":
-                if (!sender.hasPermission("elytrixparadise.admin")) {
-                    sender.sendMessage(plugin.getConfigManager().getMessage("no-permission"));
-                    return true;
-                }
-                plugin.getConfigManager().reload();
-                plugin.getSchematicManager().invalidateCache();
-                sender.sendMessage(plugin.getConfigManager().getMessage("reload-success",
-                        "%prefix%&aКонфигурация и сообщения успешно перезагружены!"));
-                break;
+        // 1. /ep tp — Телепортация на ивент
+        if (sub.equals("tp") || sub.equals("teleport")) {
+            if (!(sender instanceof Player)) {
+                sender.sendMessage(ColorUtil.colorize(adminPrefix + "&cКоманда доступна только игрокам!"));
+                return true;
+            }
+            Player player = (Player) sender;
+            if (!player.hasPermission("elytrixparadise.tp") && !player.hasPermission("elytrixparadise.use")) {
+                player.sendMessage(ColorUtil.colorize(playerPrefix + "&cУ вас нет прав на телепортацию в Райское место!"));
+                return true;
+            }
 
-            case "paste":
-                if (!sender.hasPermission("elytrixparadise.admin")) {
-                    sender.sendMessage(plugin.getConfigManager().getMessage("no-permission"));
-                    return true;
-                }
-                Location center = plugin.getConfigManager().getCenterLocation();
-                String schemName = plugin.getConfigManager().getSchematicFile();
-                sender.sendMessage(plugin.getConfigManager().getMessage("schematic.pasting",
-                        "%prefix%&7Вставка схематики &#F8BEFB" + schemName + " &7на координаты &f"
-                                + center.getBlockX() + ", " + center.getBlockY() + ", " + center.getBlockZ() + "..."));
-
-                boolean success = plugin.getSchematicManager().pasteSchematic(schemName, center);
-                if (success) {
-                    sender.sendMessage(plugin.getConfigManager().getMessage("schematic.paste-success",
-                            "%prefix%&aСхематика успешно вставлена на координаты 0, " + center.getBlockY() + ", 0!"));
-                } else {
-                    sender.sendMessage(plugin.getConfigManager().getMessage("schematic.paste-failed",
-                            "%prefix%&cНе удалось вставить схематику. Проверьте консоль сервера!"));
-                }
-                break;
-
-            case "tp":
-            case "teleport":
-                if (!(sender instanceof Player)) {
-                    sender.sendMessage(plugin.getConfigManager().getMessage("only-player"));
-                    return true;
-                }
-                if (!sender.hasPermission("elytrixparadise.tp") && !sender.hasPermission("elytrixparadise.admin")) {
-                    sender.sendMessage(plugin.getConfigManager().getMessage("no-permission"));
-                    return true;
-                }
-                Player player = (Player) sender;
-                Location spawn = plugin.getConfigManager().getSafeSpawnLocation();
-                player.teleport(spawn);
-                player.sendMessage(plugin.getConfigManager().getMessage("teleport-success",
-                        "%prefix%&aВы успешно телепортированы в Рай!"));
-                break;
-
-            case "status":
-            case "info":
-                Location c = plugin.getConfigManager().getCenterLocation();
-                List<String> infoLines = plugin.getConfigManager().getMessageList("info");
-                if (infoLines != null && !infoLines.isEmpty()) {
-                    for (String line : infoLines) {
-                        sender.sendMessage(line
-                                .replace("{x}", String.valueOf(c.getBlockX()))
-                                .replace("{y}", String.valueOf(c.getBlockY()))
-                                .replace("{z}", String.valueOf(c.getBlockZ()))
-                                .replace("{schem}", plugin.getConfigManager().getSchematicFile())
-                                .replace("{world}", c.getWorld() != null ? c.getWorld().getName() : "world")
-                        );
-                    }
-                } else {
-                    sender.sendMessage(ColorUtil.colorize("&f☁ &#F8BEFBᴇʟʏᴛʀɪx &#FFFFA0Рай &7» &#F8BEFBИнформация"));
-                    sender.sendMessage(ColorUtil.colorize("&#F8BEFB&l┃ &fКоординаты: &#FFFFA0" + c.getBlockX() + ", " + c.getBlockY() + ", " + c.getBlockZ()));
-                    sender.sendMessage(ColorUtil.colorize("&#F8BEFB&l┃ &fМир: &#FFFFA0" + (c.getWorld() != null ? c.getWorld().getName() : "world")));
-                    sender.sendMessage(ColorUtil.colorize("&#F8BEFB&l┃ &fСхематика: &#F8BEFB" + plugin.getConfigManager().getSchematicFile()));
-                }
-                break;
-
-            case "setcenter":
-                if (!(sender instanceof Player)) {
-                    sender.sendMessage(plugin.getConfigManager().getMessage("only-player"));
-                    return true;
-                }
-                if (!sender.hasPermission("elytrixparadise.admin")) {
-                    sender.sendMessage(plugin.getConfigManager().getMessage("no-permission"));
-                    return true;
-                }
-                Player pCenter = (Player) sender;
-                plugin.getConfigManager().setCenterLocation(pCenter.getLocation());
-                pCenter.sendMessage(plugin.getConfigManager().getMessage("center-updated",
-                        "%prefix%&aЦентр Рая установлен на вашу текущую позицию: "
-                                + pCenter.getLocation().getBlockX() + ", " + pCenter.getLocation().getBlockY() + ", " + pCenter.getLocation().getBlockZ()));
-                break;
-
-            case "setspawn":
-                if (!(sender instanceof Player)) {
-                    sender.sendMessage(plugin.getConfigManager().getMessage("only-player"));
-                    return true;
-                }
-                if (!sender.hasPermission("elytrixparadise.admin")) {
-                    sender.sendMessage(plugin.getConfigManager().getMessage("no-permission"));
-                    return true;
-                }
-                Player pSpawn = (Player) sender;
-                plugin.getConfigManager().setSpawnLocation(pSpawn.getLocation());
-                pSpawn.sendMessage(plugin.getConfigManager().getMessage("spawn-updated",
-                        "%prefix%&aТочка спавна игроков в Раю установлена на вашу текущую позицию!"));
-                break;
-
-            case "schem":
-            case "schematic":
-                File schemDir = plugin.getSchematicManager().getSchematicsFolder();
-                String targetFile = plugin.getConfigManager().getSchematicFile();
-                File f = plugin.getSchematicManager().findSchematicFile(targetFile);
-
-                sender.sendMessage(ColorUtil.colorize("&f☁ &#F8BEFBᴇʟʏᴛʀɪx &#FFFFA0Рай &7» &#F8BEFBСхематика"));
-                sender.sendMessage(ColorUtil.colorize("&#F8BEFB&l┃ &fПапка: &e" + schemDir.getPath()));
-                sender.sendMessage(ColorUtil.colorize("&#F8BEFB&l┃ &fФайл из конфига: &b" + targetFile));
-                sender.sendMessage(ColorUtil.colorize("&#F8BEFB&l┃ &fСтатус: " + (f != null && f.exists() ? "&aНайден (" + f.getName() + ", " + f.length() + " байт)" : "&cНе найден (положите файл в папку)")));
-                sender.sendMessage(ColorUtil.colorize("&#F8BEFB&l┃ &fКоманда для вставки: &e/ep paste"));
-                break;
-
-            default:
-                sender.sendMessage(plugin.getConfigManager().getMessage("unknown-command",
-                        "%prefix%&cНеизвестная команда. Введите &f/ep help &cдля списка команд."));
-                break;
+            Location spawn = cm.getSpawnLocation();
+            player.teleport(spawn);
+            player.sendMessage(ColorUtil.colorize(playerPrefix + "&aВы успешно телепортированы в &#F8BEFBРайское место&a!"));
+            return true;
         }
 
+        // 2. /ep info — Информация
+        if (sub.equals("info")) {
+            int active = plugin.getShardManager().getActiveShardsCount();
+            int total = plugin.getShardManager().getAllShards().size();
+            for (String line : cm.getMessageList("info")) {
+                sender.sendMessage(line
+                        .replace("{x}", String.valueOf(cm.getCenterX()))
+                        .replace("{y}", String.valueOf(cm.getCenterY()))
+                        .replace("{z}", String.valueOf(cm.getCenterZ()))
+                        .replace("{world}", cm.getWorldName())
+                        .replace("{schem}", cm.getSchematicFile())
+                        .replace("{active_shards}", String.valueOf(active))
+                        .replace("{total_shards}", String.valueOf(total)));
+            }
+            return true;
+        }
+
+        // 3. /ep schem — Инструкция
+        if (sub.equals("schem") || sub.equals("schematic")) {
+            sender.sendMessage(ColorUtil.colorize(adminPrefix + "&fСхематика должна находиться по пути:"));
+            sender.sendMessage(ColorUtil.colorize("&eplugins/ElytrixParadise/schematics/" + cm.getSchematicFile()));
+            sender.sendMessage(ColorUtil.colorize("&7Координаты вставки: &#FFFFA0X=" + cm.getCenterX() + ", Y=" + cm.getCenterY() + ", Z=" + cm.getCenterZ() + " &7в мире &f" + cm.getWorldName()));
+            return true;
+        }
+
+        // --- Команды администратора ---
+        if (!sender.hasPermission("elytrixparadise.admin")) {
+            sender.sendMessage(ColorUtil.colorize(adminPrefix + "&cУ вас нет прав на использование этой команды!"));
+            return true;
+        }
+
+        // 4. /ep reload
+        if (sub.equals("reload")) {
+            cm.load();
+            plugin.getSchematicManager().invalidateCache();
+            plugin.getSchematicManager().scanAndRegisterShards();
+            sender.sendMessage(ColorUtil.colorize(adminPrefix + "&aКонфигурация и сообщения успешно перезагружены!"));
+            return true;
+        }
+
+        // 5. /ep paste
+        if (sub.equals("paste")) {
+            Location center = cm.getCenterLocation();
+            sender.sendMessage(ColorUtil.colorize(adminPrefix + "&7Вставка схематики '" + cm.getSchematicFile() + "' на координаты X=0, Y=" + cm.getCenterY() + ", Z=0..."));
+            boolean success = plugin.getSchematicManager().pasteSchematic(cm.getSchematicFile(), center);
+            if (success) {
+                sender.sendMessage(ColorUtil.colorize(adminPrefix + "&aСхематика успешно вставлена на X=0, Y=" + cm.getCenterY() + ", Z=0!"));
+            } else {
+                sender.sendMessage(ColorUtil.colorize(adminPrefix + "&cОшибка при вставке схематики! Проверьте консоль сервера."));
+            }
+            return true;
+        }
+
+        // 6. /ep clear
+        if (sub.equals("clear") || sub.equals("remove")) {
+            plugin.getSchematicManager().clearSchematic();
+            sender.sendMessage(ColorUtil.colorize(adminPrefix + "&aСхематика и Осколки Рая успешно удалены!"));
+            return true;
+        }
+
+        // 7. /ep setcenter
+        if (sub.equals("setcenter")) {
+            if (!(sender instanceof Player)) {
+                sender.sendMessage(ColorUtil.colorize(adminPrefix + "&cКоманда доступна только игрокам!"));
+                return true;
+            }
+            Player player = (Player) sender;
+            cm.setCenterLocation(player.getLocation());
+            sender.sendMessage(ColorUtil.colorize(adminPrefix + "&aЦентральные координаты обновлены на: X="
+                    + player.getLocation().getBlockX() + ", Y=" + player.getLocation().getBlockY() + ", Z=" + player.getLocation().getBlockZ()));
+            return true;
+        }
+
+        // 8. /ep setspawn
+        if (sub.equals("setspawn")) {
+            if (!(sender instanceof Player)) {
+                sender.sendMessage(ColorUtil.colorize(adminPrefix + "&cКоманда доступна только игрокам!"));
+                return true;
+            }
+            Player player = (Player) sender;
+            cm.setSpawnLocation(player.getLocation());
+            sender.sendMessage(ColorUtil.colorize(adminPrefix + "&aТочка спавна игроков обновлена!"));
+            return true;
+        }
+
+        sender.sendMessage(ColorUtil.colorize(adminPrefix + "&cНеизвестная подкоманда. Введите &f/ep help&c."));
         return true;
-    }
-
-    private void sendHelp(CommandSender sender) {
-        List<String> helpList = plugin.getConfigManager().getMessageList("help");
-        if (helpList != null && !helpList.isEmpty()) {
-            for (String s : helpList) {
-                sender.sendMessage(s);
-            }
-        } else {
-            sender.sendMessage(ColorUtil.colorize(""));
-            sender.sendMessage(ColorUtil.colorize("&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &#FFFFA0Рай &7» &#F8BEFBКоманды"));
-            sender.sendMessage(ColorUtil.colorize("&#F8BEFB&l┃ &f/ep help &8— &#F8BEFBсписок доступных команд"));
-            sender.sendMessage(ColorUtil.colorize("&#F8BEFB&l┃ &f/ep tp &8— &#F8BEFBтелепортироваться в Рай"));
-            sender.sendMessage(ColorUtil.colorize("&#F8BEFB&l┃ &f/ep info &8— &#F8BEFBинформация"));
-            sender.sendMessage(ColorUtil.colorize("&#F8BEFB&l┃ &f/ep schem &8— &#F8BEFBкуда класть схематику"));
-            if (sender.hasPermission("elytrixparadise.admin")) {
-                sender.sendMessage(ColorUtil.colorize("&#F8BEFB&l┃ &f/ep reload &8— &#F8BEFBперезагрузка конфигурации"));
-                sender.sendMessage(ColorUtil.colorize("&#F8BEFB&l┃ &f/ep paste &8— &#F8BEFBпринудительно вставить схематику"));
-                sender.sendMessage(ColorUtil.colorize("&#F8BEFB&l┃ &f/ep setcenter &8— &#F8BEFBустановить центр Рая"));
-                sender.sendMessage(ColorUtil.colorize("&#F8BEFB&l┃ &f/ep setspawn &8— &#F8BEFBустановить точку спавна"));
-            }
-            sender.sendMessage(ColorUtil.colorize(""));
-        }
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            List<String> list = new ArrayList<>();
-            list.add("help");
-            list.add("tp");
-            list.add("info");
-            list.add("schem");
+            List<String> list = new ArrayList<>(Arrays.asList("help", "tp", "info", "schem"));
             if (sender.hasPermission("elytrixparadise.admin")) {
-                list.add("reload");
-                list.add("paste");
-                list.add("setcenter");
-                list.add("setspawn");
+                list.addAll(Arrays.asList("reload", "paste", "clear", "setcenter", "setspawn"));
             }
-            List<String> filtered = new ArrayList<>();
-            for (String s : list) {
-                if (s.toLowerCase().startsWith(args[0].toLowerCase())) {
-                    filtered.add(s);
-                }
-            }
-            return filtered;
+            return list.stream()
+                    .filter(s -> s.toLowerCase().startsWith(args[0].toLowerCase()))
+                    .collect(Collectors.toList());
         }
-
         return Collections.emptyList();
     }
 }
