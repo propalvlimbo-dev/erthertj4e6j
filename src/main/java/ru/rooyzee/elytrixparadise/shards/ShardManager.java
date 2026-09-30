@@ -96,11 +96,11 @@ public class ShardManager {
                         world.playSound(loc, Sound.BLOCK_BELL_RESONATE, 1.5f, 1.2f);
                         world.playSound(loc, Sound.BLOCK_BEACON_ACTIVATE, 1.5f, 1.5f);
 
-                        // Broadcast to players in event area
+                        // Broadcast in ElytriX format to players in event area
                         String playerPrefix = plugin.getConfigManager().getPlayerPrefix();
                         for (Player p : world.getPlayers()) {
                             if (p.getLocation().distanceSquared(loc) <= 50 * 50) {
-                                p.sendMessage(ColorUtil.colorize(playerPrefix + "&aОдин из &#F8BEFBОсколков Рая &aвосстановился и снова активен!"));
+                                p.sendMessage(ColorUtil.colorize(playerPrefix + "&aОсколок Рая &fуспешно восстановился и снова &aактивен&f!"));
                             }
                         }
                     }
@@ -114,9 +114,10 @@ public class ShardManager {
         ParadiseShard shard = getShard(blockLoc);
         if (shard == null) return false;
 
+        String playerPrefix = plugin.getConfigManager().getPlayerPrefix();
+
         if (shard.getState() != ParadiseShard.ShardState.ACTIVE) {
-            String playerPrefix = plugin.getConfigManager().getPlayerPrefix();
-            player.sendMessage(ColorUtil.colorize(playerPrefix + "&cЭтот Осколок сейчас на перезарядке! Осталось: &#FFFFA0"
+            player.sendMessage(ColorUtil.colorize(playerPrefix + "&cОсколок находится на перезарядке! &fОсталось: &#F8BEFB"
                     + ColorUtil.formatTimeShort(shard.getCooldownRemaining())));
             player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_HIT, 0.8f, 0.5f);
             return true;
@@ -125,8 +126,7 @@ public class ShardManager {
         // Check tool (must be a pickaxe)
         ItemStack handItem = player.getInventory().getItemInMainHand();
         if (handItem == null || !handItem.getType().name().endsWith("_PICKAXE")) {
-            String playerPrefix = plugin.getConfigManager().getPlayerPrefix();
-            player.sendMessage(ColorUtil.colorize(playerPrefix + "&cОсколок Рая можно добывать только киркой!"));
+            player.sendMessage(ColorUtil.colorize(playerPrefix + "&cДля добычи Осколка Рая необходима кирка!"));
             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 1.0f, 0.5f);
             return true;
         }
@@ -196,7 +196,7 @@ public class ShardManager {
         }
 
         double riskPercent = Math.round(shard.getCurrentExplosionChance() * 10.0) / 10.0;
-        ColorUtil.sendActionBar(player, "&f☁ &#F8BEFBОсколок Рая &7| &#FFFFA0Добыча... &7(Риск взрыва: &#FF5555" + riskPercent + "%&7)");
+        ColorUtil.sendActionBar(player, "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBОсколок Рая &8| &fДобыча... &8| &fРиск: &#F8BEFB" + riskPercent + "%");
         hologramHandler.createOrUpdateHologram(shard);
 
         return true;
@@ -237,7 +237,7 @@ public class ShardManager {
                 knockback.multiply(1.4);
                 p.setVelocity(knockback);
                 p.sendMessage(ColorUtil.colorize(plugin.getConfigManager().getPlayerPrefix()
-                        + "&c☠ Осколок Рая сдетонировал от нестабильности и нанёс огромный урон!"));
+                        + "&cОсколок Рая перегрузился и сдетонировал!"));
             }
         }
 

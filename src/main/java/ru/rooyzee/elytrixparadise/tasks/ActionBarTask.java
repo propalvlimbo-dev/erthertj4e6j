@@ -63,16 +63,16 @@ public class ActionBarTask extends BukkitRunnable {
             if (nearbyShard != null) {
                 if (nearbyShard.getState() == ParadiseShard.ShardState.ACTIVE) {
                     double risk = Math.round(nearbyShard.getCurrentExplosionChance() * 10.0) / 10.0;
-                    msg = "&f☁ &#F8BEFBРайское место &8| &aДобывай Осколок! &8| &#FF5555Риск взрыва: " + risk + "%";
+                    msg = "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBОсколок Рая &8| &aДобывай киркой &8| &fРиск: &#F8BEFB" + risk + "%";
                 } else {
                     String timeStr = ColorUtil.formatTimeShort(nearbyShard.getCooldownRemaining());
-                    msg = "&f☁ &#F8BEFBРайское место &8| &cОсколок на перезарядке &8| &#FFFFA0" + timeStr;
+                    msg = "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBОсколок Рая &8| &cПерезарядка &8| &#F8BEFB" + timeStr;
                 }
             } else {
                 if (alt) {
-                    msg = "&f☁ &#F8BEFBРайское место &#FFFFA0✦ &fОсколков активно: &#208BFB" + activeShards + "&7/" + totalShards + " &#FFFFA0✦ Добывай киркой!";
+                    msg = "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место &8| &fОсколков активно: &#F8BEFB" + activeShards + "&7/&#F8BEFB" + totalShards;
                 } else {
-                    msg = "&f☁ &#F8BEFBРайское место &#FFFFA0✦ &eДобывай Осколки Рая ради лута и опыта!";
+                    msg = "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место &8| &fДобывай осколки ради наград";
                 }
             }
 

@@ -28,7 +28,7 @@ public class ShardHologramHandler {
     }
 
     public void createOrUpdateHologram(ParadiseShard shard) {
-        Location holoLoc = shard.getLocation().clone().add(0.5, 1.8, 0.5);
+        Location holoLoc = shard.getLocation().clone().add(0.5, 2.2, 0.5);
         List<String> lines = getHologramLines(shard);
 
         if (decentHologramsPresent) {
@@ -51,35 +51,48 @@ public class ShardHologramHandler {
     private List<String> getHologramLines(ParadiseShard shard) {
         List<String> lines = new ArrayList<>();
         if (shard.getState() == ParadiseShard.ShardState.ACTIVE) {
-            lines.add(ColorUtil.colorize("&#FFFFA0✦ &#F8BEFBОсколок Рая &#FFFFA0✦"));
-            lines.add(ColorUtil.colorize("&a● Активен &7(Добывай киркой)"));
-            lines.add(ColorUtil.colorize("&eДобывай для получения лута и опыта!"));
+            lines.add("#ICON:RED_GLAZED_TERRACOTTA");
+            lines.add(ColorUtil.colorize("&f☁ &#F8BEFBОсколок Рая &f☁"));
+            lines.add(ColorUtil.colorize("&a● &fСтатус: &aАктивен"));
+            lines.add("");
+            lines.add(ColorUtil.colorize("&7● &fДобывай киркой для получения лута"));
             double risk = Math.round(shard.getCurrentExplosionChance() * 10.0) / 10.0;
             if (shard.getHitCount() > 0) {
-                lines.add(ColorUtil.colorize("&7Риск взрыва: &#FF5555" + risk + "%"));
+                lines.add(ColorUtil.colorize("&7● &fРиск взрыва: &#F8BEFB" + risk + "%"));
             }
         } else {
-            lines.add(ColorUtil.colorize("&8✦ &#AAAAAAОсколок Рая &8✦"));
+            lines.add("#ICON:GRAY_GLAZED_TERRACOTTA");
+            lines.add(ColorUtil.colorize("&8☁ &#F8BEFBОсколок Рая &8☁"));
+            lines.add(ColorUtil.colorize("&c● &fСтатус: &cПерезарядка"));
+            lines.add("");
             String timeStr = ColorUtil.formatTimeShort(shard.getCooldownRemaining());
-            lines.add(ColorUtil.colorize("&c● Перезарядка: &#FFFFA0" + timeStr));
-            lines.add(ColorUtil.colorize("&7Восстанавливает небесную энергию..."));
+            lines.add(ColorUtil.colorize("&7● &fВосстановление через: &#F8BEFB" + timeStr));
+            lines.add(ColorUtil.colorize("&7● &fОсколок накапливает энергию"));
         }
         return lines;
     }
 
     private void updateArmorStandHologram(String id, Location baseLoc, List<String> lines) {
+        // Strip #ICON directives for armor stand text display
+        List<String> textLines = new ArrayList<>();
+        for (String l : lines) {
+            if (!l.startsWith("#ICON:")) {
+                textLines.add(l);
+            }
+        }
+
         List<ArmorStand> stands = fallbackHolograms.get(id);
         if (stands == null || stands.isEmpty() || stands.stream().anyMatch(Entity::isDead)) {
             removeArmorStandHologram(id);
             stands = new ArrayList<>();
             double yOffset = 0.0;
-            for (int i = lines.size() - 1; i >= 0; i--) {
+            for (int i = textLines.size() - 1; i >= 0; i--) {
                 Location lineLoc = baseLoc.clone().add(0, yOffset, 0);
                 ArmorStand stand = (ArmorStand) baseLoc.getWorld().spawnEntity(lineLoc, EntityType.ARMOR_STAND);
                 stand.setVisible(false);
                 stand.setGravity(false);
                 stand.setCustomNameVisible(true);
-                stand.setCustomName(lines.get(i));
+                stand.setCustomName(textLines.get(i));
                 stand.setMarker(true);
                 stand.setSmall(true);
                 stand.setInvulnerable(true);
@@ -88,11 +101,11 @@ public class ShardHologramHandler {
             }
             fallbackHolograms.put(id, stands);
         } else {
-            for (int i = 0; i < lines.size(); i++) {
+            for (int i = 0; i < textLines.size(); i++) {
                 if (i < stands.size()) {
                     ArmorStand stand = stands.get(i);
                     if (stand.isValid()) {
-                        stand.setCustomName(lines.get(i));
+                        stand.setCustomName(textLines.get(i));
                     }
                 }
             }

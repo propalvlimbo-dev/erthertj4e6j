@@ -2,11 +2,18 @@
 set -e
 
 echo "=== Сборка ElytrixParadise ==="
-if [ -d "$PWD/.jdk/bin" ]; then
-    export JAVA_HOME="$PWD/.jdk"
-elif [ -d "/home/user/jdk/bin" ]; then
-    export JAVA_HOME="/home/user/jdk"
+if [ ! -d "/home/user/erthertj4e6j/.jdk/bin" ]; then
+    echo "Загрузка JDK..."
+    git clone --depth 1 --filter=blob:none --sparse https://github.com/mingjiewang/qap.git /tmp/qap
+    cd /tmp/qap
+    git sparse-checkout set bin/3rdPartyTools/jdk
+    cp -r /tmp/qap/bin/3rdPartyTools/jdk /home/user/erthertj4e6j/.jdk
+    chmod -R +x /home/user/erthertj4e6j/.jdk/bin /home/user/erthertj4e6j/.jdk/jre/bin
+    rm -rf /tmp/qap
+    cd /home/user/erthertj4e6j
 fi
+
+export JAVA_HOME="/home/user/erthertj4e6j/.jdk"
 export PATH=$JAVA_HOME/bin:$PATH
 
 BUILD_DIR=/tmp/elytrix_build
