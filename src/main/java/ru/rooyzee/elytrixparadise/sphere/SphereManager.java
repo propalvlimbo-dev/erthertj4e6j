@@ -37,12 +37,15 @@ public class SphereManager {
     private int maxSphereHp = 200;
     private int currentSphereHp = 200;
 
-    // Механика 6 взрывов сферы
+    // Механика 6 взрывов сферы и фазовый барьер
     private int explosionCount = 0;
     private final int maxExplosions = 6;
     private double currentExplosionChance = 8.0;
     private final double baseExplosionChance = 8.0;
     private final double explosionChanceStep = 1.2;
+
+    private long shieldUntil = 0L; // Время окончания фазового барьера
+    private final Map<UUID, Long> playerLastHitTime = new ConcurrentHashMap<>();
 
     private int cooldownSeconds = 10800; // 3 часа (3 * 3600 = 10800 сек)
     private int cooldownRemaining = 0;
@@ -68,16 +71,14 @@ public class SphereManager {
         this.cooldownSeconds = plugin.getConfig().getInt("sphere.cooldown-seconds", 10800);
         this.explosionCount = 0;
         this.currentExplosionChance = baseExplosionChance;
+        this.shieldUntil = 0L;
+        this.playerLastHitTime.clear();
 
         // Сканирование существующей сферы и 6 цепей из схематики
         scanExistingSphereAndChains(center);
         updateAllHolograms();
     }
 
-    /**
-     * Сканирует существующие в мире блоки сферы (BLUE_GLAZED_TERRACOTTA) и 6 цепей (CHAIN)
-     * из схематики без создания лишних блоков.
-     */
     public void scanExistingSphereAndChains(Location center) {
         sphereBlocks.clear();
         chains.clear();
@@ -120,7 +121,6 @@ public class SphereManager {
             int avgZ = (int) Math.round(sumZ / foundSphereLocs.size());
 
             this.sphereHighCenter = new Location(world, avgX, avgY, avgZ);
-            // Высота падения: ровно на алтарь (Y = cy + 1)
             this.sphereFallenCenter = new Location(world, avgX, cy + 1, avgZ);
 
             for (Location loc : foundSphereLocs) {
@@ -137,7 +137,7 @@ public class SphereManager {
             this.sphereFallenCenter = new Location(world, cx, cy + 1, cz);
         }
 
-        // 6 Цепей: 4 горизонтальных + 2 вертикальных (к куполу и к алтарю)
+        // 6 Цепей: 4 горизонтальных + 2 вертикальных
         int chainHp = plugin.getConfig().getInt("sphere.chain-hp", 50);
         ChainNode north = new ChainNode(1, "Северная цепь", chainHp);
         ChainNode south = new ChainNode(2, "Южная цепь", chainHp);
@@ -315,7 +315,7 @@ public class SphereManager {
 
             int brokenCount = getBrokenChainsCount();
             int total = chains.size();
-            Bukkit.broadcastMessage(ColorUtil.colorize(prefix + "&#F8BEFB" + chain.getName() + " &cразорвана! &8(&c" + brokenCount + "&7/&c" + total + "&8)"));
+            ColorUtil.broadcastToPlayers(prefix + "&#F8BEFB" + chain.getName() + " &cразорвана! &8(&c" + brokenCount + "&7/&c" + total + "&8)");
 
             if (brokenCount >= total) {
                 startFallingSequence();
@@ -341,7 +341,7 @@ public class SphereManager {
         removeJumpBoostFromPlayers();
 
         String prefix = plugin.getConfigManager().getAdminPrefix();
-        Bukkit.broadcastMessage(ColorUtil.colorize(prefix + "&c&lВсе 6 цепей разорваны! &#F8BEFBСердце Рая обрушивается вниз на алтарь!"));
+        ColorUtil.broadcastToPlayers(prefix + "&c&lВсе 6 цепей разорваны! &#F8BEFBСердце Рая обрушивается вниз на алтарь!");
 
         for (ChainNode c : chains) {
             removeHologram("ep_chain_" + c.getId());
@@ -380,6 +380,7 @@ public class SphereManager {
                     currentSphereHp = maxSphereHp;
                     explosionCount = 0;
                     currentExplosionChance = baseExplosionChance;
+                    shieldUntil = 0L;
 
                     world.playSound(sphereFallenCenter, Sound.ENTITY_GENERIC_EXPLODE, 2.0f, 0.6f);
                     world.playSound(sphereFallenCenter, Sound.ENTITY_IRON_GOLEM_DAMAGE, 2.0f, 0.5f);
@@ -387,7 +388,7 @@ public class SphereManager {
                     world.spawnParticle(Particle.EXPLOSION_LARGE, sphereFallenCenter.clone().add(0, 1, 0), 6, 1.0, 0.5, 1.0);
                     world.spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, sphereFallenCenter.clone().add(0, 0.5, 0), 50, 2.0, 0.3, 2.0, 0.05);
 
-                    Bukkit.broadcastMessage(ColorUtil.colorize(prefix + "&#F8BEFBСердце Рая упало на алтарь! &aДобывайте его кирками! &8(&cШанс взрыва: 6 фаз&8)"));
+                    ColorUtil.broadcastToPlayers(prefix + "&#F8BEFBСердце Рая упало на алтарь! &aДобывайте его кирками! &8(&cШанс детонации: 6 фаз&8)");
                     updateSphereHologram();
                 }
             }
@@ -398,6 +399,24 @@ public class SphereManager {
         if (state != SphereState.FALLEN_MINING) return false;
 
         String prefix = plugin.getConfigManager().getAdminPrefix();
+
+        // 1. Проверка защитного щита после взрыва (3 секунды)
+        long now = System.currentTimeMillis();
+        if (now < shieldUntil) {
+            long remainingMs = shieldUntil - now;
+            double sec = Math.round(remainingMs / 100.0) / 10.0;
+            ColorUtil.sendActionBar(player, "&cЗащитный барьер Сердца Рая! &7Подождите &#F8BEFB" + sec + " сек.");
+            player.playSound(player.getLocation(), Sound.ITEM_SHIELD_BLOCK, 0.8f, 1.2f);
+            return true;
+        }
+
+        // 2. Задержка между ударами для каждого игрока (750 мс) чтобы предотвратить мгновенный спам
+        Long lastHit = playerLastHitTime.get(player.getUniqueId());
+        if (lastHit != null && (now - lastHit) < 750) {
+            return true;
+        }
+        playerLastHitTime.put(player.getUniqueId(), now);
+
         ItemStack hand = player.getInventory().getItemInMainHand();
         if (hand == null || !hand.getType().name().endsWith("_PICKAXE")) {
             player.sendMessage(ColorUtil.colorize(prefix + "&cДля добычи Сердца Рая необходима кирка!"));
@@ -426,7 +445,7 @@ public class SphereManager {
         ExperienceOrb orb = (ExperienceOrb) world.spawn(blockLoc.clone().add(0.5, 1.0, 0.5), ExperienceOrb.class);
         orb.setExperience(ThreadLocalRandom.current().nextInt(3, 8));
 
-        // Подсчёт игроков в радиусе 20 блоков для динамического масштабирования лута
+        // Динамический лут в зависимости от числа игроков в радиусе 20 блоков
         int nearbyPlayers = 0;
         for (Player p : world.getPlayers()) {
             if (p.getLocation().distanceSquared(sphereFallenCenter) <= 400.0) {
@@ -465,20 +484,26 @@ public class SphereManager {
     private void triggerSphereExplosion(Player triggerPlayer) {
         explosionCount++;
         currentExplosionChance = baseExplosionChance;
+        shieldUntil = System.currentTimeMillis() + 3000L; // 3 секунды фазового барьера
+
         World world = sphereFallenCenter.getWorld();
         Location center = sphereFallenCenter.clone().add(0.5, 1.5, 0.5);
 
         world.spawnParticle(Particle.EXPLOSION_HUGE, center, 3);
+        world.spawnParticle(Particle.FLASH, center, 2);
         world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 2.5f, 0.9f);
         world.playSound(center, Sound.ITEM_TRIDENT_THUNDER, 2.0f, 1.2f);
+        world.playSound(center, Sound.ITEM_SHIELD_BLOCK, 1.5f, 0.8f);
+
         try {
             world.strikeLightningEffect(center);
         } catch (Throwable ignored) {}
 
+        // Отталкивание и умеренный урон
         for (Player p : world.getPlayers()) {
             if (p.getLocation().distanceSquared(center) <= 36.0) {
                 p.damage(8.0);
-                Vector dir = p.getLocation().toVector().subtract(center.toVector()).normalize().setY(0.4).multiply(0.8);
+                Vector dir = p.getLocation().toVector().subtract(center.toVector()).normalize().setY(0.45).multiply(0.85);
                 p.setVelocity(dir);
             }
         }
@@ -486,7 +511,7 @@ public class SphereManager {
         renderFallenSphereExplosionState();
 
         String prefix = plugin.getConfigManager().getAdminPrefix();
-        Bukkit.broadcastMessage(ColorUtil.colorize(prefix + "&#F8BEFBСердце Рая &cдетонировало! &8(&c" + explosionCount + "&7/&c" + maxExplosions + "&8)"));
+        ColorUtil.broadcastToPlayers(prefix + "&#F8BEFBСердце Рая &cдетонировало! &8(&c" + explosionCount + "&7/&c" + maxExplosions + "&8) &8| &cЗащитный барьер: 3 сек.");
 
         updateSphereHologram();
 
@@ -502,7 +527,7 @@ public class SphereManager {
         removeHologram("ep_sphere_main");
 
         String prefix = plugin.getConfigManager().getAdminPrefix();
-        Bukkit.broadcastMessage(ColorUtil.colorize(prefix + "&#F8BEFBСердце Рая истощено и возносится обратно под купол на 3 часа перезарядки..."));
+        ColorUtil.broadcastToPlayers(prefix + "&#F8BEFBСердце Рая истощено и возносится обратно под купол на 3 часа перезарядки...");
 
         final World world = sphereFallenCenter.getWorld();
         final int startY = sphereFallenCenter.getBlockY();
@@ -583,7 +608,7 @@ public class SphereManager {
 
     private void enterCooldownPhase() {
         state = SphereState.COOLDOWN;
-        cooldownRemaining = cooldownSeconds; // 3 часа (10800 сек)
+        cooldownRemaining = cooldownSeconds; // 10800 сек = 3 часа
         drawSphereAt(sphereHighCenter, Material.GRAY_GLAZED_TERRACOTTA);
 
         for (ChainNode c : chains) {
@@ -598,6 +623,7 @@ public class SphereManager {
         currentSphereHp = maxSphereHp;
         explosionCount = 0;
         currentExplosionChance = baseExplosionChance;
+        shieldUntil = 0L;
 
         for (ChainNode c : chains) {
             c.reset();
@@ -607,7 +633,7 @@ public class SphereManager {
         updateAllHolograms();
 
         String prefix = plugin.getConfigManager().getAdminPrefix();
-        Bukkit.broadcastMessage(ColorUtil.colorize(prefix + "&#F8BEFBСердце Рая снова активно! &fЦепи заряжены, купол храма наполнен космической энергией!"));
+        ColorUtil.broadcastToPlayers(prefix + "&#F8BEFBСердце Рая снова активно! &fЦепи заряжены, купол храма наполнен космической энергией!");
         if (sphereHighCenter.getWorld() != null) {
             sphereHighCenter.getWorld().playSound(sphereHighCenter, Sound.UI_TOAST_CHALLENGE_COMPLETE, 2.0f, 1.0f);
             sphereHighCenter.getWorld().playSound(sphereHighCenter, Sound.BLOCK_BEACON_ACTIVATE, 2.0f, 1.2f);
@@ -634,7 +660,7 @@ public class SphereManager {
         World world = center.getWorld();
 
         boolean jumpBoostEnabled = plugin.getConfig().getBoolean("sphere.jump-boost.enabled", true);
-        double roomRadius = plugin.getConfig().getDouble("sphere.jump-boost.room-radius", 16.0);
+        double roomRadius = plugin.getConfig().getDouble("sphere.jump-boost.room-radius", 15.0); // 15 блоков
         double roomRadiusSq = roomRadius * roomRadius;
         int jumpLevel = plugin.getConfig().getInt("sphere.jump-boost.level", 8); // Прыгучесть 8 уровня
         int jumpAmp = Math.max(0, jumpLevel - 1); // 7
@@ -700,7 +726,7 @@ public class SphereManager {
         if (holoLoc == null) return;
 
         List<String> lines = new ArrayList<>();
-        lines.add(ColorUtil.colorize("&f⛓ &#F8BEFB" + chain.getName() + " &f⛓"));
+        lines.add(ColorUtil.colorize("&8[&c●&8] &#F8BEFB" + chain.getName() + " &8[&c●&8]"));
         lines.add(ColorUtil.colorize("&c● &fПрочность: &#F8BEFB" + chain.getCurrentHp() + "&7/&#F8BEFB" + chain.getMaxHp() + " HP"));
         lines.add(ColorUtil.colorize("&7● &fЛомайте киркой для обрыва цепи"));
 
@@ -712,7 +738,7 @@ public class SphereManager {
         Location holoLoc = sphereHighCenter.clone().add(0.5, 3.5, 0.5);
         int aliveChains = chains.size() - getBrokenChainsCount();
         List<String> lines = new ArrayList<>();
-        lines.add(ColorUtil.colorize("&f☁ &#F8BEFBСердце Рая &f☁"));
+        lines.add(ColorUtil.colorize("&#F8BEFB● &fСердце Рая &#F8BEFB●"));
         lines.add(ColorUtil.colorize("&e● &fЦепей цело: &#F8BEFB" + aliveChains + "&7/&#F8BEFB" + chains.size()));
         lines.add(ColorUtil.colorize("&7● &fРазрушьте все 6 цепей, чтобы сфера упала!"));
 
@@ -724,7 +750,7 @@ public class SphereManager {
         Location holoLoc = sphereFallenCenter.clone().add(0.5, 3.5, 0.5);
         double risk = Math.round(currentExplosionChance * 10.0) / 10.0;
         List<String> lines = new ArrayList<>();
-        lines.add(ColorUtil.colorize("&f⚡ &#F8BEFBСердце Рая (Упало) &f⚡"));
+        lines.add(ColorUtil.colorize("&e★ &#F8BEFBСердце Рая (Упало) &e★"));
         lines.add(ColorUtil.colorize("&a● &fДобывайте киркой! &8| &cРиск: &#F8BEFB" + risk + "%"));
         lines.add(ColorUtil.colorize("&f● Взрывов до истощения: &#F8BEFB" + explosionCount + "&7/&#F8BEFB" + maxExplosions));
 
@@ -735,7 +761,7 @@ public class SphereManager {
         if (sphereHighCenter == null) return;
         Location holoLoc = sphereHighCenter.clone().add(0.5, 3.5, 0.5);
         List<String> lines = new ArrayList<>();
-        lines.add(ColorUtil.colorize("&8☁ &#F8BEFBСердце Рая &8☁"));
+        lines.add(ColorUtil.colorize("&8● &#F8BEFBСердце Рая &8●"));
         lines.add(ColorUtil.colorize("&c● &fСтатус: &cПерезарядка (3 ч)"));
         lines.add(ColorUtil.colorize("&7● &fВосстановление через: &#F8BEFB" + ColorUtil.formatTimeShort(cooldownRemaining)));
 

@@ -3,6 +3,7 @@ package ru.rooyzee.elytrixparadise.utils;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
@@ -64,12 +65,44 @@ public final class ColorUtil {
     }
 
     /**
-     * Formats seconds into MM:SS format.
+     * Sends broadcast message ONLY to online players (not spamming console logs).
+     */
+    public static void broadcastToPlayers(String message) {
+        if (message == null) return;
+        String colored = colorize(message);
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            p.sendMessage(colored);
+        }
+    }
+
+    /**
+     * Formats seconds into H:MM:SS or M:SS format (e.g. 2:59:30 or 2:59).
      */
     public static String formatTimeShort(int totalSeconds) {
         if (totalSeconds < 0) totalSeconds = 0;
+        if (totalSeconds >= 3600) {
+            int hours = totalSeconds / 3600;
+            int minutes = (totalSeconds % 3600) / 60;
+            int seconds = totalSeconds % 60;
+            return String.format("%d:%02d:%02d", hours, minutes, seconds);
+        }
         int minutes = totalSeconds / 60;
         int seconds = totalSeconds % 60;
         return String.format("%02d:%02d", minutes, seconds);
+    }
+
+    /**
+     * Formats seconds into Russian pretty format (e.g. 2ч 59м or 4м 30с).
+     */
+    public static String formatTimePretty(int totalSeconds) {
+        if (totalSeconds < 0) totalSeconds = 0;
+        if (totalSeconds >= 3600) {
+            int hours = totalSeconds / 3600;
+            int minutes = (totalSeconds % 3600) / 60;
+            return String.format("%dч %02dм", hours, minutes);
+        }
+        int minutes = totalSeconds / 60;
+        int seconds = totalSeconds % 60;
+        return String.format("%dм %02dс", minutes, seconds);
     }
 }

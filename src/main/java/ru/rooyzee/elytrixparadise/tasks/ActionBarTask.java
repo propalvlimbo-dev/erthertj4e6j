@@ -44,74 +44,79 @@ public class ActionBarTask extends BukkitRunnable {
             Location pLoc = player.getLocation();
             double dy = pLoc.getY();
 
-            // 3D Proximity Check: высота и горизонтальный радиус
+            // 3D Proximity Check
             if (dy < minY || dy > maxY) {
-                // Если вне зоны, снимаем утомление если было
-                if (player.hasPotionEffect(PotionEffectType.SLOW_DIGGING) && !player.hasPermission("elytrixparadise.fatigue.keep")) {
-                    player.removePotionEffect(PotionEffectType.SLOW_DIGGING);
-                }
+                removeFatigueIfPresent(player);
                 continue;
             }
 
             double dx = pLoc.getX() - center.getX();
             double dz = pLoc.getZ() - center.getZ();
             if (dx * dx + dz * dz > radiusXZSq) {
-                if (player.hasPotionEffect(PotionEffectType.SLOW_DIGGING) && !player.hasPermission("elytrixparadise.fatigue.keep")) {
-                    player.removePotionEffect(PotionEffectType.SLOW_DIGGING);
-                }
+                removeFatigueIfPresent(player);
                 continue;
             }
 
-            // Проверка близости к конкретному осколку (< 6 блоков)
-            ParadiseShard nearbyShard = null;
+            // Поиск ближайшего активного/неактивного осколка (радиус 7 блоков от центра блока)
+            ParadiseShard nearbyActiveShard = null;
+            ParadiseShard nearbyCooldownShard = null;
+
             for (ParadiseShard s : plugin.getShardManager().getAllShards()) {
-                if (s.getLocation().getWorld().equals(pLoc.getWorld()) && s.getLocation().distanceSquared(pLoc) <= 36.0) {
-                    nearbyShard = s;
-                    break;
+                if (s.getLocation().getWorld().equals(pLoc.getWorld())) {
+                    Location sCenter = s.getLocation().clone().add(0.5, 0.5, 0.5);
+                    if (sCenter.distanceSquared(pLoc) <= 49.0) { // 7.0 блоков
+                        if (s.getState() == ParadiseShard.ShardState.ACTIVE) {
+                            nearbyActiveShard = s;
+                            break;
+                        } else {
+                            nearbyCooldownShard = s;
+                        }
+                    }
                 }
             }
 
             String msg;
-            if (nearbyShard != null) {
-                if (nearbyShard.getState() == ParadiseShard.ShardState.ACTIVE) {
-                    double risk = Math.round(nearbyShard.getCurrentExplosionChance() * 10.0) / 10.0;
-                    msg = "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBОсколок Рая &8| &aДобывай киркой &8| &fРиск: &#F8BEFB" + risk + "%";
+            if (nearbyActiveShard != null) {
+                double risk = Math.round(nearbyActiveShard.getCurrentExplosionChance() * 10.0) / 10.0;
+                msg = "&f✦ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBОсколок Рая &8| &aДобывай киркой &8| &fРиск: &#F8BEFB" + risk + "%";
 
-                    // Утомление накладывается ТОЛЬКО возле активного осколка (где "Добывай киркой")
-                    if (plugin.getConfigManager().isMiningFatigueEnabled()
-                            && player.getGameMode() != GameMode.CREATIVE
-                            && player.getGameMode() != GameMode.SPECTATOR
-                            && !player.hasPermission("elytrixparadise.fatigue.bypass")) {
-                        int level = plugin.getConfigManager().getMiningFatigueLevel();
-                        int amplifier = Math.max(0, level - 1);
-                        // Длительность 60 тиков (3 сек) с ambient=true, чтобы не мигало
-                        player.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_DIGGING, 60, amplifier, true, false, true), true);
-                    }
-                } else {
-                    String timeStr = ColorUtil.formatTimeShort(nearbyShard.getCooldownRemaining());
-                    msg = "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBОсколок Рая &8| &cПерезарядка &8| &#F8BEFB" + timeStr;
+                // Плавное наложение Утомления ТОЛЬКО возле активного осколка без мигания
+                if (plugin.getConfigManager().isMiningFatigueEnabled()
+                        && player.getGameMode() != GameMode.CREATIVE
+                        && player.getGameMode() != GameMode.SPECTATOR
+                        && !player.hasPermission("elytrixparadise.fatigue.bypass")) {
 
-                    // Возле осколка на перезарядке утомление не нужно
-                    if (player.hasPotionEffect(PotionEffectType.SLOW_DIGGING) && !player.hasPermission("elytrixparadise.fatigue.keep")) {
-                        player.removePotionEffect(PotionEffectType.SLOW_DIGGING);
+                    int level = plugin.getConfigManager().getMiningFatigueLevel();
+                    int amplifier = Math.max(0, level - 1);
+                    PotionEffect cur = player.getPotionEffect(PotionEffectType.SLOW_DIGGING);
+
+                    // Обновляем только когда эффекта нет или осталось меньше 40 тиков (2 сек)
+                    if (cur == null || cur.getDuration() < 40) {
+                        player.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_DIGGING, 80, amplifier, true, false, true), true);
                     }
                 }
+            } else if (nearbyCooldownShard != null) {
+                String timeStr = ColorUtil.formatTimeShort(nearbyCooldownShard.getCooldownRemaining());
+                msg = "&f✦ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBОсколок Рая &8| &cПерезарядка &8| &#F8BEFB" + timeStr;
+                removeFatigueIfPresent(player);
             } else {
-                // Вдали от осколка утомление снимается
-                if (player.hasPotionEffect(PotionEffectType.SLOW_DIGGING) && !player.hasPermission("elytrixparadise.fatigue.keep")) {
-                    player.removePotionEffect(PotionEffectType.SLOW_DIGGING);
-                }
-
+                removeFatigueIfPresent(player);
                 if (showOffHint) {
-                    msg = "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место &8| &7Чтобы отключить: &#F8BEFB/paradise off";
+                    msg = "&f✦ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место &8| &7Чтобы отключить: &#F8BEFB/paradise off";
                 } else {
-                    msg = "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место &8| &fОсколков активно: &#F8BEFB" + activeShards + "&7/&#F8BEFB" + totalShards;
+                    msg = "&f✦ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место &8| &fОсколков активно: &#F8BEFB" + activeShards + "&7/&#F8BEFB" + totalShards;
                 }
             }
 
             if (!plugin.isActionBarDisabled(player.getUniqueId())) {
                 ColorUtil.sendActionBar(player, msg);
             }
+        }
+    }
+
+    private void removeFatigueIfPresent(Player player) {
+        if (player.hasPotionEffect(PotionEffectType.SLOW_DIGGING) && !player.hasPermission("elytrixparadise.fatigue.keep")) {
+            player.removePotionEffect(PotionEffectType.SLOW_DIGGING);
         }
     }
 }

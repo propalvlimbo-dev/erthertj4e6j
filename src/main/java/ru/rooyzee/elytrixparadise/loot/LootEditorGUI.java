@@ -90,7 +90,7 @@ public class LootEditorGUI {
                 )));
 
         // Кнопка: Сохранить (слот 49)
-        inv.setItem(49, createButton(Material.NETHER_STAR, "&a&l💾 Сохранить изменения",
+        inv.setItem(49, createButton(Material.NETHER_STAR, "&a&l★ Сохранить изменения",
                 Arrays.asList(
                         "&7Нажмите, чтобы сохранить и применить",
                         "&7все предметы на этой странице!"

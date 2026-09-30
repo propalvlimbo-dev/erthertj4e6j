@@ -212,7 +212,7 @@ public class ShardManager {
         }
 
         double riskPercent = Math.round(shard.getCurrentExplosionChance() * 10.0) / 10.0;
-        ColorUtil.sendActionBar(player, "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBОсколок Рая &8| &fДобыча... &8| &fРиск: &#F8BEFB" + riskPercent + "%");
+        ColorUtil.sendActionBar(player, "&#F8BEFB✦ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBОсколок Рая &8| &fДобыча... &8| &fРиск: &#F8BEFB" + riskPercent + "%");
         hologramHandler.createOrUpdateHologram(shard);
 
         return true;

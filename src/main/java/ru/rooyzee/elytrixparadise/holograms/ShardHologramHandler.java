@@ -28,7 +28,6 @@ public class ShardHologramHandler {
     }
 
     public void createOrUpdateHologram(ParadiseShard shard) {
-        // Hologram moved 1 block higher (3.2 blocks above the block)
         Location holoLoc = shard.getLocation().clone().add(0.5, 3.2, 0.5);
         List<String> lines = getHologramLines(shard);
 
@@ -54,7 +53,7 @@ public class ShardHologramHandler {
         List<String> lines = new ArrayList<>();
         if (shard.getState() == ParadiseShard.ShardState.ACTIVE) {
             lines.add("#ICON:RED_GLAZED_TERRACOTTA");
-            lines.add(ColorUtil.colorize("&f☁ &#F8BEFBОсколок Рая &f☁"));
+            lines.add(ColorUtil.colorize("&#F8BEFB● &fОсколок Рая &#F8BEFB●"));
             lines.add(ColorUtil.colorize("&a● &fСтатус: &aАктивен"));
             lines.add("");
             lines.add(ColorUtil.colorize("&7● &fДобывай киркой для получения лута"));
@@ -64,7 +63,7 @@ public class ShardHologramHandler {
             }
         } else {
             lines.add("#ICON:GRAY_GLAZED_TERRACOTTA");
-            lines.add(ColorUtil.colorize("&8☁ &#F8BEFBОсколок Рая &8☁"));
+            lines.add(ColorUtil.colorize("&8● &#F8BEFBОсколок Рая &8●"));
             lines.add(ColorUtil.colorize("&c● &fСтатус: &cПерезарядка"));
             lines.add("");
             String timeStr = ColorUtil.formatTimeShort(shard.getCooldownRemaining());
@@ -75,7 +74,6 @@ public class ShardHologramHandler {
     }
 
     private void updateArmorStandHologram(String id, Location baseLoc, List<String> lines) {
-        // Strip #ICON directives for armor stand text display
         List<String> textLines = new ArrayList<>();
         for (String l : lines) {
             if (!l.startsWith("#ICON:")) {
@@ -122,7 +120,10 @@ public class ShardHologramHandler {
     public void removeHologramById(String id) {
         if (decentHologramsPresent) {
             try {
-                DHAPI.removeHologram(id);
+                Hologram holo = DHAPI.getHologram(id);
+                if (holo != null) {
+                    DHAPI.removeHologram(id);
+                }
             } catch (Throwable ignored) {}
         }
         removeArmorStandHologram(id);
@@ -131,18 +132,11 @@ public class ShardHologramHandler {
     private void removeArmorStandHologram(String id) {
         List<ArmorStand> stands = fallbackHolograms.remove(id);
         if (stands != null) {
-            for (ArmorStand stand : stands) {
-                if (stand != null && stand.isValid()) {
-                    stand.remove();
+            for (ArmorStand s : stands) {
+                if (s != null && s.isValid()) {
+                    s.remove();
                 }
             }
         }
-    }
-
-    public void removeAllHolograms() {
-        for (String id : fallbackHolograms.keySet()) {
-            removeArmorStandHologram(id);
-        }
-        fallbackHolograms.clear();
     }
 }
