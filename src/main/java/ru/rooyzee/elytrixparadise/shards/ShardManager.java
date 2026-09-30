@@ -56,6 +56,17 @@ public class ShardManager {
 
     public ParadiseShard registerShard(Location loc) {
         if (loc == null || loc.getWorld() == null) return null;
+
+        // Защита: не регистрировать осколок на сфере или центральном алтаре
+        Location center = plugin.getConfigManager().getCenterLocation();
+        if (center != null && loc.getWorld().equals(center.getWorld())) {
+            if (Math.abs(loc.getBlockX() - center.getBlockX()) <= 6
+                    && Math.abs(loc.getBlockZ() - center.getBlockZ()) <= 6
+                    && loc.getBlockY() >= center.getBlockY() - 2) {
+                return null;
+            }
+        }
+
         String key = getBlockKey(loc);
         ParadiseShard existing = shards.get(key);
         if (existing != null) {
@@ -66,7 +77,6 @@ public class ShardManager {
         ParadiseShard shard = new ParadiseShard(loc, plugin.getConfigManager().getShardBaseExplosionChance());
         shards.put(key, shard);
 
-        // Ensure block is red glazed terracotta on start
         Block block = loc.getBlock();
         if (block.getType() != Material.RED_GLAZED_TERRACOTTA) {
             block.setType(Material.RED_GLAZED_TERRACOTTA, false);
@@ -77,12 +87,27 @@ public class ShardManager {
         return shard;
     }
 
+    public void removeShard(Location loc) {
+        if (loc == null || loc.getWorld() == null) return;
+        String key = getBlockKey(loc);
+        ParadiseShard shard = shards.remove(key);
+        if (shard != null) {
+            hologramHandler.removeHologram(shard);
+        }
+    }
+
+    public void clearAllShards() {
+        for (ParadiseShard shard : shards.values()) {
+            hologramHandler.removeHologram(shard);
+        }
+        shards.clear();
+    }
+
     public void tick() {
         for (ParadiseShard shard : shards.values()) {
             if (shard.getState() == ParadiseShard.ShardState.COOLDOWN) {
                 shard.decrementCooldown();
                 if (shard.getCooldownRemaining() <= 0) {
-                    // Restore to active state
                     shard.setState(ParadiseShard.ShardState.ACTIVE);
                     shard.resetExplosionChance(plugin.getConfigManager().getShardBaseExplosionChance());
 
@@ -126,7 +151,6 @@ public class ShardManager {
             return true;
         }
 
-        // Check tool (must be a pickaxe)
         ItemStack handItem = player.getInventory().getItemInMainHand();
         if (handItem == null || !handItem.getType().name().endsWith("_PICKAXE")) {
             player.sendMessage(ColorUtil.colorize(prefix + "&cДля добычи Осколка Рая необходима кирка!"));
@@ -137,34 +161,28 @@ public class ShardManager {
         World world = blockLoc.getWorld();
         Location center = blockLoc.clone().add(0.5, 0.5, 0.5);
 
-        // Visual & audio feedback
         world.spawnParticle(Particle.BLOCK_CRACK, center, 20, 0.3, 0.3, 0.3, Material.RED_GLAZED_TERRACOTTA.createBlockData());
         world.playSound(center, Sound.BLOCK_ANVIL_USE, 0.7f, 1.8f);
 
-        // Roll explosion chance
         double roll = ThreadLocalRandom.current().nextDouble(0.0, 100.0);
         double currentChance = shard.getCurrentExplosionChance();
 
         if (roll < currentChance) {
-            // TRIGGER EXPLOSION!
             triggerShardExplosion(shard, player);
             return true;
         }
 
-        // SUCCESSFUL MINING DROP
         shard.incrementHitCount();
         shard.increaseExplosionChance(
                 plugin.getConfigManager().getShardChanceIncreasePerHit(),
                 plugin.getConfigManager().getShardMaxExplosionChance()
         );
 
-        // Ensure block remains red glazed terracotta
         Block block = blockLoc.getBlock();
         block.setType(Material.RED_GLAZED_TERRACOTTA, false);
         block.getState().update(true, true);
         player.sendBlockChange(blockLoc, Material.RED_GLAZED_TERRACOTTA.createBlockData());
 
-        // Drop experience
         int expMin = plugin.getConfigManager().getShardExpMin();
         int expMax = plugin.getConfigManager().getShardExpMax();
         int exp = ThreadLocalRandom.current().nextInt(expMin, expMax + 1);
@@ -173,23 +191,19 @@ public class ShardManager {
             orb.setExperience(exp);
         }
 
-        // Drop loot items on ground
-        List<LootItem> lootTable = plugin.getConfigManager().getLootItems();
+        // Выпадение лута из редактора лута
+        List<ItemStack> drops = plugin.getLootStorageManager().rollShardDrops();
         boolean droppedAny = false;
-        for (LootItem lootItem : lootTable) {
-            double lootRoll = ThreadLocalRandom.current().nextDouble(0.0, 100.0);
-            if (lootRoll <= lootItem.getChance()) {
-                ItemStack is = lootItem.createItemStack();
-                if (is != null && is.getType() != Material.AIR) {
-                    Location dropLoc = blockLoc.clone().add(0.5, 1.1, 0.5);
-                    org.bukkit.entity.Item dropped = world.dropItem(dropLoc, is);
-                    dropped.setVelocity(new Vector(
-                            ThreadLocalRandom.current().nextDouble(-0.06, 0.06),
-                            0.2,
-                            ThreadLocalRandom.current().nextDouble(-0.06, 0.06)
-                    ));
-                    droppedAny = true;
-                }
+        for (ItemStack is : drops) {
+            if (is != null && is.getType() != Material.AIR) {
+                Location dropLoc = blockLoc.clone().add(0.5, 1.1, 0.5);
+                org.bukkit.entity.Item dropped = world.dropItem(dropLoc, is);
+                dropped.setVelocity(new Vector(
+                        ThreadLocalRandom.current().nextDouble(-0.06, 0.06),
+                        0.2,
+                        ThreadLocalRandom.current().nextDouble(-0.06, 0.06)
+                ));
+                droppedAny = true;
             }
         }
 
@@ -209,54 +223,38 @@ public class ShardManager {
         World world = loc.getWorld();
         Location center = loc.clone().add(0.5, 0.5, 0.5);
 
-        // Turn block into gray glazed terracotta
         Block block = loc.getBlock();
         block.setType(Material.GRAY_GLAZED_TERRACOTTA, false);
         block.getState().update(true, true);
 
-        // Set cooldown & reset chances
         shard.setState(ParadiseShard.ShardState.COOLDOWN);
         shard.setCooldownRemaining(plugin.getConfigManager().getShardCooldownSeconds());
         shard.resetExplosionChance(plugin.getConfigManager().getShardBaseExplosionChance());
 
-        // Massive explosion effects (sound & particles)
-        world.spawnParticle(Particle.EXPLOSION_HUGE, center, 3, 0.5, 0.5, 0.5);
-        world.spawnParticle(Particle.FLAME, center, 50, 0.8, 0.8, 0.8, 0.15);
-        world.spawnParticle(Particle.SMOKE_LARGE, center, 30, 0.5, 0.5, 0.5, 0.1);
-        world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 2.5f, 0.8f);
-        world.playSound(center, Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 1.8f, 0.9f);
+        world.spawnParticle(Particle.EXPLOSION_HUGE, center, 2);
+        world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 2.0f, 1.0f);
 
-        // AOE Damage & knockback (lethal to naked, iron, and half-diamond) WITHOUT block damage
+        double dmg = plugin.getConfigManager().getShardExplosionDamage();
         double radius = plugin.getConfigManager().getShardExplosionRadius();
-        double damage = plugin.getConfigManager().getShardExplosionDamage();
         double radiusSq = radius * radius;
 
         for (Player p : world.getPlayers()) {
-            Location pLoc = p.getLocation();
-            if (pLoc.distanceSquared(center) <= radiusSq) {
-                p.damage(damage);
-                Vector knockback = pLoc.toVector().subtract(center.toVector()).normalize();
-                knockback.setY(0.55);
-                knockback.multiply(1.4);
-                p.setVelocity(knockback);
+            if (p.getLocation().distanceSquared(center) <= radiusSq) {
+                p.damage(dmg);
+                Vector dir = p.getLocation().toVector().subtract(center.toVector()).normalize().setY(0.4).multiply(0.8);
+                p.setVelocity(dir);
             }
-            if (pLoc.distanceSquared(loc) <= 64 * 64) {
+        }
+
+        for (Player p : world.getPlayers()) {
+            if (p.getLocation().distanceSquared(loc) <= 64 * 64) {
                 p.sendBlockChange(loc, Material.GRAY_GLAZED_TERRACOTTA.createBlockData());
             }
         }
 
+        String prefix = plugin.getConfigManager().getAdminPrefix();
+        String timeStr = ColorUtil.formatTimeShort(shard.getCooldownRemaining());
+        triggerPlayer.sendMessage(ColorUtil.colorize(prefix + "&cОсколок Рая взорвался! &7Перезарядка: &#F8BEFB" + timeStr));
         hologramHandler.createOrUpdateHologram(shard);
-    }
-
-    public void clearAllShards() {
-        for (ParadiseShard shard : shards.values()) {
-            hologramHandler.removeHologram(shard);
-        }
-        shards.clear();
-        hologramHandler.removeAllHolograms();
-    }
-
-    public ShardHologramHandler getHologramHandler() {
-        return hologramHandler;
     }
 }

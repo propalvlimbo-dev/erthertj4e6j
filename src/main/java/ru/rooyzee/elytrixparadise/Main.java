@@ -10,6 +10,9 @@ import ru.rooyzee.elytrixparadise.commands.ParadiseCommand;
 import ru.rooyzee.elytrixparadise.listeners.ParadiseProtectionListener;
 import ru.rooyzee.elytrixparadise.listeners.ShardMiningListener;
 import ru.rooyzee.elytrixparadise.listeners.ShardProtectionListener;
+import ru.rooyzee.elytrixparadise.loot.LootEditorGUI;
+import ru.rooyzee.elytrixparadise.loot.LootEditorListener;
+import ru.rooyzee.elytrixparadise.loot.LootStorageManager;
 import ru.rooyzee.elytrixparadise.managers.ConfigManager;
 import ru.rooyzee.elytrixparadise.managers.RegionManager;
 import ru.rooyzee.elytrixparadise.managers.SchematicManager;
@@ -32,6 +35,8 @@ public class Main extends JavaPlugin {
     private ShardManager shardManager;
     private SchematicManager schematicManager;
     private SphereManager sphereManager;
+    private LootStorageManager lootStorageManager;
+    private LootEditorGUI lootEditorGUI;
 
     private BukkitTask shardTickTask;
     private BukkitTask actionBarTask;
@@ -42,15 +47,21 @@ public class Main extends JavaPlugin {
     public void onEnable() {
         instance = this;
 
-        // 1. Создание папки для схематик
+        // 1. Создание папок
         File schemFolder = new File(getDataFolder(), "schematics");
         if (!schemFolder.exists()) {
             schemFolder.mkdirs();
         }
+        File lootFolder = new File(getDataFolder(), "loot");
+        if (!lootFolder.exists()) {
+            lootFolder.mkdirs();
+        }
 
-        // 2. Загрузка конфигурации
+        // 2. Загрузка конфигурации и хранилища лута
         configManager = new ConfigManager(this);
         configManager.load();
+        lootStorageManager = new LootStorageManager(this);
+        lootEditorGUI = new LootEditorGUI(this);
 
         // 3. Инициализация менеджеров
         regionManager = new RegionManager(this);
@@ -58,11 +69,12 @@ public class Main extends JavaPlugin {
         schematicManager = new SchematicManager(this);
         sphereManager = new SphereManager(this);
 
-        // 4. Регистрация слушателей событий (добыча, защита осколков, запрет флая/года)
+        // 4. Регистрация слушателей событий (добыча, защита осколков, запрет флая/года, редактор лута)
         PluginManager pm = Bukkit.getPluginManager();
         pm.registerEvents(new ShardMiningListener(this), this);
         pm.registerEvents(new ShardProtectionListener(this), this);
         pm.registerEvents(new ParadiseProtectionListener(this), this);
+        pm.registerEvents(new LootEditorListener(this, lootEditorGUI), this);
 
         // 5. Запуск периодических задач
         shardTickTask = new ShardTickTask(this).runTaskTimer(this, 20L, 20L);
@@ -118,6 +130,7 @@ public class Main extends JavaPlugin {
         getLogger().info("  Координаты ивента: X=0, Y=" + configManager.getCenterY() + ", Z=0");
         getLogger().info("  Радиус региона и поиска: " + configManager.getScanRadiusXZ() + " блоков");
         getLogger().info("  Папка для схематик: plugins/ElytrixParadise/schematics/");
+        getLogger().info("  Папка для лута: plugins/ElytrixParadise/loot/");
         getLogger().info("  Файл схематики: " + configManager.getSchematicFile());
         getLogger().info("=========================================");
     }
@@ -170,6 +183,14 @@ public class Main extends JavaPlugin {
 
     public SphereManager getSphereManager() {
         return sphereManager;
+    }
+
+    public LootStorageManager getLootStorageManager() {
+        return lootStorageManager;
+    }
+
+    public LootEditorGUI getLootEditorGUI() {
+        return lootEditorGUI;
     }
 
     public boolean isActionBarDisabled(UUID uuid) {

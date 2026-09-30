@@ -204,7 +204,6 @@ public class SchematicManager {
         int chunkX = target.getBlockX() >> 4;
         int chunkZ = target.getBlockZ() >> 4;
 
-        // Ensure chunks in the wide radius are loaded (radius 8 chunks = 128 blocks)
         for (int cx = chunkX - 8; cx <= chunkX + 8; cx++) {
             for (int cz = chunkZ - 8; cz <= chunkZ + 8; cz++) {
                 if (!world.isChunkLoaded(cx, cz)) {
@@ -238,7 +237,6 @@ public class SchematicManager {
 
             Operations.complete(operation);
 
-            // Compute bounding box
             BlockVector3 origin = clipboard.getOrigin();
             this.lastPastedMin = clipboard.getMinimumPoint().subtract(origin).add(to);
             this.lastPastedMax = clipboard.getMaximumPoint().subtract(origin).add(to);
@@ -247,7 +245,6 @@ public class SchematicManager {
             plugin.getLogger().info("✓ Схематика " + name + " успешно вставлена на координаты X="
                     + target.getBlockX() + ", Y=" + (target.getBlockY() + offsetY) + ", Z=" + target.getBlockZ());
 
-            // Scan for shards
             scanAndRegisterShards();
 
             return true;
@@ -310,7 +307,17 @@ public class SchematicManager {
                     for (int z = 0; z < 16; z++) {
                         int worldZ = (chZ << 4) + z;
                         if (Math.abs(worldZ - cz) > radiusXZ) continue;
+
+                        // Исключаем центральную область (радиус 6 блоков от центра, где находится сфера и алтарь)
+                        if (Math.abs(worldX - cx) <= 6 && Math.abs(worldZ - cz) <= 6 && minY >= (center.getBlockY() - 2)) {
+                            // Пропускаем центральный алтарь/сферу чтобы осколки там не регистрировались
+                        }
+
                         for (int y = minY; y <= maxY; y++) {
+                            // Защита от регистрации осколка на сфере/алтаре
+                            if (Math.abs(worldX - cx) <= 6 && Math.abs(worldZ - cz) <= 6 && y >= (center.getBlockY() - 2)) {
+                                continue;
+                            }
                             try {
                                 Block b = chunk.getBlock(x, y, z);
                                 Material type = b.getType();

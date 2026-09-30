@@ -37,11 +37,11 @@ mining-fatigue:
 sphere:
   max-hp: 200
   chain-hp: 50
-  cooldown-seconds: 1800
+  cooldown-seconds: 10800 # 3 часа перезарядки после полного истощения
   jump-boost:
     enabled: true
-    level: 5 # Высокая прыгучесть (Прыгучесть V) пока сфера висит на цепях
-    room-radius: 22.0 # Радиус купольного зала храма
+    level: 8 # Прыгучесть 8 уровня (космическая гравитация с мягким падением)
+    room-radius: 16.0 # Радиус купольного зала храма
 
 actionbar:
   radius-xz: 150.0
