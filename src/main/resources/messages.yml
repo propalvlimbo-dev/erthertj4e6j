@@ -1,6 +1,6 @@
 prefix:
-  admin: "&#F8BEFB✦ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» "
-  player: "&#F8BEFB✦ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место &7» "
+  admin: "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» "
+  player: "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место &7» "
 
 no-permission: "%admin_prefix%&cУ вас недостаточно прав для выполнения этой команды!"
 only-player: "%admin_prefix%&cКоманда доступна только игрокам!"
@@ -12,7 +12,7 @@ spawn-updated: "%admin_prefix%&aТочка спавна игроков успе�
 
 help:
   - ""
-  - "&#F8BEFB✦ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место"
+  - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место"
   - "&#F8BEFB&l┃ &f/ep tp &8— &#F8BEFBТелепортация на ивент"
   - "&#F8BEFB&l┃ &f/ep info &8— &#F8BEFBИнформация об ивенте"
   - "&#F8BEFB&l┃ &f/ep schem &8— &#F8BEFBИнформация о схематике"
@@ -27,7 +27,7 @@ help:
 
 info:
   - ""
-  - "&#F8BEFB✦ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBИнформация"
+  - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBИнформация"
   - "&#F8BEFB&l┃ &fИвент: &#F8BEFBРайское место"
   - "&#F8BEFB&l┃ &fКоординаты: &#F8BEFBX: {x}, Y: {y}, Z: {z} &7({world})"
   - "&#F8BEFB&l┃ &fОсколков активно: &#F8BEFB{active_shards}&7/&#F8BEFB{total_shards}"
