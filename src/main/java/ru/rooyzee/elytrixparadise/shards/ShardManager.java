@@ -70,6 +70,7 @@ public class ShardManager {
         Block block = loc.getBlock();
         if (block.getType() != Material.RED_GLAZED_TERRACOTTA) {
             block.setType(Material.RED_GLAZED_TERRACOTTA, false);
+            block.getState().update(true, true);
         }
 
         hologramHandler.createOrUpdateHologram(shard);
@@ -88,6 +89,7 @@ public class ShardManager {
                     Location loc = shard.getLocation();
                     Block block = loc.getBlock();
                     block.setType(Material.RED_GLAZED_TERRACOTTA, false);
+                    block.getState().update(true, true);
 
                     World world = loc.getWorld();
                     if (world != null) {
@@ -95,6 +97,12 @@ public class ShardManager {
                         world.spawnParticle(Particle.FLASH, loc.clone().add(0.5, 1.0, 0.5), 2);
                         world.playSound(loc, Sound.BLOCK_BELL_RESONATE, 1.5f, 1.2f);
                         world.playSound(loc, Sound.BLOCK_BEACON_ACTIVATE, 1.5f, 1.5f);
+
+                        for (Player p : world.getPlayers()) {
+                            if (p.getLocation().distanceSquared(loc) <= 64 * 64) {
+                                p.sendBlockChange(loc, Material.RED_GLAZED_TERRACOTTA.createBlockData());
+                            }
+                        }
                     }
                 }
                 hologramHandler.createOrUpdateHologram(shard);
@@ -150,6 +158,12 @@ public class ShardManager {
                 plugin.getConfigManager().getShardMaxExplosionChance()
         );
 
+        // Ensure block remains red glazed terracotta
+        Block block = blockLoc.getBlock();
+        block.setType(Material.RED_GLAZED_TERRACOTTA, false);
+        block.getState().update(true, true);
+        player.sendBlockChange(blockLoc, Material.RED_GLAZED_TERRACOTTA.createBlockData());
+
         // Drop experience
         int expMin = plugin.getConfigManager().getShardExpMin();
         int expMax = plugin.getConfigManager().getShardExpMax();
@@ -198,6 +212,7 @@ public class ShardManager {
         // Turn block into gray glazed terracotta
         Block block = loc.getBlock();
         block.setType(Material.GRAY_GLAZED_TERRACOTTA, false);
+        block.getState().update(true, true);
 
         // Set cooldown & reset chances
         shard.setState(ParadiseShard.ShardState.COOLDOWN);
@@ -224,6 +239,9 @@ public class ShardManager {
                 knockback.setY(0.55);
                 knockback.multiply(1.4);
                 p.setVelocity(knockback);
+            }
+            if (pLoc.distanceSquared(loc) <= 64 * 64) {
+                p.sendBlockChange(loc, Material.GRAY_GLAZED_TERRACOTTA.createBlockData());
             }
         }
 

@@ -38,25 +38,27 @@ public class RegionManager {
             ProtectedCuboidRegion region = new ProtectedCuboidRegion(REGION_ID, min, max);
             region.setPriority(200);
 
-            // Pleasant Event Flags:
+            // Flags:
             // 1. Отключить спавн мобов
             region.setFlag(Flags.MOB_SPAWNING, StateFlag.State.DENY);
-            // 2. Отключить урон от падения
-            region.setFlag(Flags.FALL_DAMAGE, StateFlag.State.DENY);
-            // 3. Запрет стройки и разрушения
+            // 2. Урон от падения ВКЛЮЧЕН (ALLOW)
+            region.setFlag(Flags.FALL_DAMAGE, StateFlag.State.ALLOW);
+            // 3. Запрет разрушения и постройки (кроме осколков через плагин)
             region.setFlag(Flags.BLOCK_BREAK, StateFlag.State.DENY);
             region.setFlag(Flags.BLOCK_PLACE, StateFlag.State.DENY);
             // 4. Запрет взрывов
             region.setFlag(Flags.CREEPER_EXPLOSION, StateFlag.State.DENY);
             region.setFlag(Flags.OTHER_EXPLOSION, StateFlag.State.DENY);
             region.setFlag(Flags.TNT, StateFlag.State.DENY);
-            // 5. Запрет распространения огня и лавы
+            // 5. Запрет огня и лавы
             region.setFlag(Flags.FIRE_SPREAD, StateFlag.State.DENY);
             region.setFlag(Flags.LAVA_FIRE, StateFlag.State.DENY);
             region.setFlag(Flags.LAVA_FLOW, StateFlag.State.DENY);
             region.setFlag(Flags.WATER_FLOW, StateFlag.State.DENY);
-            // 6. PvP включено
+            // 6. PvP и эндер-пёрлы ВКЛЮЧЕНЫ
             region.setFlag(Flags.PVP, StateFlag.State.ALLOW);
+            region.setFlag(Flags.ENDERPEARL, StateFlag.State.ALLOW);
+            region.setFlag(Flags.CHORUS_TELEPORT, StateFlag.State.ALLOW);
 
             RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
             com.sk89q.worldguard.protection.managers.RegionManager rm = container.get(BukkitAdapter.adapt(world));
@@ -107,7 +109,6 @@ public class RegionManager {
             } catch (Throwable ignored) {}
         }
 
-        // Fallback distance check if WorldGuard is absent
         Location center = plugin.getConfigManager().getCenterLocation();
         if (center == null || !loc.getWorld().equals(center.getWorld())) return false;
         double radiusXZ = plugin.getConfigManager().getActionbarRadiusXZ();
