@@ -42,13 +42,9 @@ schematic:
   paste-failed: "%admin_prefix%&cОшибка при вставке схематики! Проверьте консоль сервера."
   not-found: "%admin_prefix%&cФайл схематики не найден в папке plugins/ElytrixParadise/schematics/!"
 
+event-start:
+  - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBСердце Рая активно! &fХрам заряжен &7(/ep tp)"
+
 event-end:
-  - ""
-  - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место"
-  - "&#F8BEFB&l┃ &fИвент &#F8BEFB«Райское место» &fуспешно завершен!"
-  - "&#F8BEFB&l┃ &fСердце Рая полностью истощено и уходит на перезарядку &8(&#F8BEFB3 часа&8)&f."
-  - "&#F8BEFB&l┃ &fСпасибо всем отважным игрокам за участие в битве!"
-  - "&#F8BEFB&l┃ "
-  - "&7● &fСайт проекта: &#F8BEFBelytrix.pw"
-  - ""
+  - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBИвент завершен! &fСердце Рая истощено &8(&#F8BEFB3 часа&8)"
 

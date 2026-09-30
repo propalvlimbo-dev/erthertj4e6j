@@ -636,6 +636,14 @@ public class SphereManager {
         drawSphereAt(sphereHighCenter, Material.BLUE_GLAZED_TERRACOTTA);
         updateAllHolograms();
 
+        // Оповещение о начале Сердца Рая
+        List<String> startMessages = plugin.getConfigManager().getMessageList("event-start");
+        if (startMessages != null && !startMessages.isEmpty()) {
+            for (String line : startMessages) {
+                ColorUtil.broadcastToPlayers(line);
+            }
+        }
+
         if (sphereHighCenter.getWorld() != null) {
             sphereHighCenter.getWorld().playSound(sphereHighCenter, Sound.UI_TOAST_CHALLENGE_COMPLETE, 2.0f, 1.0f);
             sphereHighCenter.getWorld().playSound(sphereHighCenter, Sound.BLOCK_BEACON_ACTIVATE, 2.0f, 1.2f);
