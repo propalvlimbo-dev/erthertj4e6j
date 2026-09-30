@@ -151,6 +151,20 @@ public class ShardManager {
             return true;
         }
 
+        // 1. Проверка защитного барьера осколка (3 секунды)
+        if (shard.isShieldActive()) {
+            long remainingMs = shard.getShieldUntil() - System.currentTimeMillis();
+            double sec = Math.round(remainingMs / 100.0) / 10.0;
+            ColorUtil.sendActionBar(player, "&cЗащитный барьер Осколка! &7Подождите &#F8BEFB" + sec + " сек.");
+            player.playSound(player.getLocation(), Sound.ITEM_SHIELD_BLOCK, 0.8f, 1.2f);
+            return true;
+        }
+
+        // 2. Задержка между ударами для каждого игрока (750 мс) против макросов и Eff 7
+        if (!shard.canPlayerHit(player.getUniqueId(), 750L)) {
+            return true;
+        }
+
         ItemStack handItem = player.getInventory().getItemInMainHand();
         if (handItem == null || !handItem.getType().name().endsWith("_PICKAXE")) {
             player.sendMessage(ColorUtil.colorize(prefix + "&cДля добычи Осколка Рая необходима кирка!"));
@@ -230,9 +244,19 @@ public class ShardManager {
         shard.setState(ParadiseShard.ShardState.COOLDOWN);
         shard.setCooldownRemaining(plugin.getConfigManager().getShardCooldownSeconds());
         shard.resetExplosionChance(plugin.getConfigManager().getShardBaseExplosionChance());
+        shard.setShieldUntil(System.currentTimeMillis() + 3000L); // 3 секунды барьера
 
         world.spawnParticle(Particle.EXPLOSION_HUGE, center, 2);
-        world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 2.0f, 1.0f);
+        world.spawnParticle(Particle.FLASH, center, 2);
+        world.spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, center, 25, 0.8, 0.3, 0.8, 0.05);
+
+        world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 2.0f, 0.9f);
+        world.playSound(center, Sound.ITEM_TRIDENT_THUNDER, 1.8f, 1.2f);
+        world.playSound(center, Sound.ITEM_SHIELD_BLOCK, 1.2f, 0.8f);
+
+        try {
+            world.strikeLightningEffect(center);
+        } catch (Throwable ignored) {}
 
         double dmg = plugin.getConfigManager().getShardExplosionDamage();
         double radius = plugin.getConfigManager().getShardExplosionRadius();
@@ -254,7 +278,7 @@ public class ShardManager {
 
         String prefix = plugin.getConfigManager().getAdminPrefix();
         String timeStr = ColorUtil.formatTimeShort(shard.getCooldownRemaining());
-        triggerPlayer.sendMessage(ColorUtil.colorize(prefix + "&cОсколок Рая взорвался! &7Перезарядка: &#F8BEFB" + timeStr));
+        triggerPlayer.sendMessage(ColorUtil.colorize(prefix + "&cОсколок Рая детонировал! &7Перезарядка: &#F8BEFB" + timeStr));
         hologramHandler.createOrUpdateHologram(shard);
     }
 }

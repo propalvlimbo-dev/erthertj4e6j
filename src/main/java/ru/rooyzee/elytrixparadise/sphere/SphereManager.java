@@ -315,7 +315,6 @@ public class SphereManager {
 
             int brokenCount = getBrokenChainsCount();
             int total = chains.size();
-            ColorUtil.broadcastToPlayers(prefix + "&#F8BEFB" + chain.getName() + " &cразорвана! &8(&c" + brokenCount + "&7/&c" + total + "&8)");
 
             if (brokenCount >= total) {
                 startFallingSequence();
@@ -339,9 +338,6 @@ public class SphereManager {
         state = SphereState.FALLING;
 
         removeJumpBoostFromPlayers();
-
-        String prefix = plugin.getConfigManager().getAdminPrefix();
-        ColorUtil.broadcastToPlayers(prefix + "&c&lВсе 6 цепей разорваны! &#F8BEFBСердце Рая обрушивается вниз на алтарь!");
 
         for (ChainNode c : chains) {
             removeHologram("ep_chain_" + c.getId());
@@ -382,13 +378,16 @@ public class SphereManager {
                     currentExplosionChance = baseExplosionChance;
                     shieldUntil = 0L;
 
-                    world.playSound(sphereFallenCenter, Sound.ENTITY_GENERIC_EXPLODE, 2.0f, 0.6f);
+                    world.playSound(sphereFallenCenter, Sound.ENTITY_GENERIC_EXPLODE, 2.5f, 0.5f);
                     world.playSound(sphereFallenCenter, Sound.ENTITY_IRON_GOLEM_DAMAGE, 2.0f, 0.5f);
-                    world.playSound(sphereFallenCenter, Sound.BLOCK_ANVIL_LAND, 2.0f, 0.5f);
-                    world.spawnParticle(Particle.EXPLOSION_LARGE, sphereFallenCenter.clone().add(0, 1, 0), 6, 1.0, 0.5, 1.0);
-                    world.spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, sphereFallenCenter.clone().add(0, 0.5, 0), 50, 2.0, 0.3, 2.0, 0.05);
+                    world.playSound(sphereFallenCenter, Sound.BLOCK_ANVIL_LAND, 2.5f, 0.4f);
+                    world.spawnParticle(Particle.EXPLOSION_LARGE, sphereFallenCenter.clone().add(0, 1, 0), 8, 1.0, 0.5, 1.0);
+                    world.spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, sphereFallenCenter.clone().add(0, 0.5, 0), 60, 2.0, 0.3, 2.0, 0.05);
+                    world.spawnParticle(Particle.SOUL_FIRE_FLAME, sphereFallenCenter.clone().add(0, 1.0, 0), 30, 1.2, 0.8, 1.2, 0.05);
 
-                    ColorUtil.broadcastToPlayers(prefix + "&#F8BEFBСердце Рая упало на алтарь! &aДобывайте его кирками! &8(&cШанс детонации: 6 фаз&8)");
+                    // Таинственный и зловещий саундтрек при падении Сердца Рая
+                    playMysteriousSoundscape(world, sphereFallenCenter);
+
                     updateSphereHologram();
                 }
             }
@@ -510,9 +509,6 @@ public class SphereManager {
 
         renderFallenSphereExplosionState();
 
-        String prefix = plugin.getConfigManager().getAdminPrefix();
-        ColorUtil.broadcastToPlayers(prefix + "&#F8BEFBСердце Рая &cдетонировало! &8(&c" + explosionCount + "&7/&c" + maxExplosions + "&8) &8| &cЗащитный барьер: 3 сек.");
-
         updateSphereHologram();
 
         if (explosionCount >= maxExplosions) {
@@ -526,8 +522,16 @@ public class SphereManager {
 
         removeHologram("ep_sphere_main");
 
-        String prefix = plugin.getConfigManager().getAdminPrefix();
-        ColorUtil.broadcastToPlayers(prefix + "&#F8BEFBСердце Рая истощено и возносится обратно под купол на 3 часа перезарядки...");
+        // Красивое сообщение об окончании ивента для игроков
+        List<String> endMessages = plugin.getConfigManager().getMessageList("event-end");
+        if (endMessages != null && !endMessages.isEmpty()) {
+            for (String line : endMessages) {
+                ColorUtil.broadcastToPlayers(line);
+            }
+        } else {
+            String prefix = plugin.getConfigManager().getAdminPrefix();
+            ColorUtil.broadcastToPlayers(prefix + "&#F8BEFBИвент &f«Райское место» &#F8BEFBзавершен! Сердце Рая истощено и отправляется на перезарядку.");
+        }
 
         final World world = sphereFallenCenter.getWorld();
         final int startY = sphereFallenCenter.getBlockY();
@@ -632,12 +636,56 @@ public class SphereManager {
         drawSphereAt(sphereHighCenter, Material.BLUE_GLAZED_TERRACOTTA);
         updateAllHolograms();
 
-        String prefix = plugin.getConfigManager().getAdminPrefix();
-        ColorUtil.broadcastToPlayers(prefix + "&#F8BEFBСердце Рая снова активно! &fЦепи заряжены, купол храма наполнен космической энергией!");
         if (sphereHighCenter.getWorld() != null) {
             sphereHighCenter.getWorld().playSound(sphereHighCenter, Sound.UI_TOAST_CHALLENGE_COMPLETE, 2.0f, 1.0f);
             sphereHighCenter.getWorld().playSound(sphereHighCenter, Sound.BLOCK_BEACON_ACTIVATE, 2.0f, 1.2f);
         }
+    }
+
+    private void playMysteriousSoundscape(World world, Location center) {
+        if (world == null || center == null) return;
+
+        double radiusSq = 150.0 * 150.0;
+        for (Player p : world.getPlayers()) {
+            if (p.getLocation().distanceSquared(center) <= radiusSq) {
+                // Загадочный / зловещий саундтрек пластинки 13
+                p.playSound(p.getLocation(), Sound.MUSIC_DISC_13, 2.5f, 1.0f);
+                // Глубокий зловещий гул древнего стража
+                p.playSound(p.getLocation(), Sound.ENTITY_ELDER_GUARDIAN_CURSE, 1.8f, 0.5f);
+                // Мистический колокольный набат
+                p.playSound(p.getLocation(), Sound.BLOCK_BELL_RESONATE, 2.0f, 0.4f);
+                // Зловещее потустороннее эхо душ
+                p.playSound(p.getLocation(), Sound.AMBIENT_SOUL_SAND_VALLEY_MOOD, 2.0f, 0.6f);
+                // Далекий громоподобный рык
+                p.playSound(p.getLocation(), Sound.ENTITY_WITHER_SPAWN, 1.2f, 0.5f);
+            }
+        }
+
+        // Дополнительные нагнетающие звуковые волны через 1.5 и 3.5 секунды
+        Bukkit.getScheduler().runTaskLater(plugin, new Runnable() {
+            @Override
+            public void run() {
+                for (Player p : world.getPlayers()) {
+                    if (p.getLocation().distanceSquared(center) <= radiusSq) {
+                        p.playSound(p.getLocation(), Sound.AMBIENT_WARPED_FOREST_MOOD, 2.0f, 0.7f);
+                        p.playSound(p.getLocation(), Sound.BLOCK_RESPAWN_ANCHOR_DEPLETE, 1.5f, 0.5f);
+                        p.playSound(p.getLocation(), Sound.BLOCK_PORTAL_TRIGGER, 1.2f, 0.5f);
+                    }
+                }
+            }
+        }, 30L);
+
+        Bukkit.getScheduler().runTaskLater(plugin, new Runnable() {
+            @Override
+            public void run() {
+                for (Player p : world.getPlayers()) {
+                    if (p.getLocation().distanceSquared(center) <= radiusSq) {
+                        p.playSound(p.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1.0f, 0.6f);
+                        p.playSound(p.getLocation(), Sound.BLOCK_BELL_RESONATE, 1.5f, 0.6f);
+                    }
+                }
+            }
+        }, 70L);
     }
 
     public void tick() {

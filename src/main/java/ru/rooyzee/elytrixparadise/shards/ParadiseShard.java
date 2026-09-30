@@ -19,6 +19,7 @@ public class ParadiseShard {
     private int cooldownRemaining = 0; // seconds
     private int hitCount = 0;
     private double currentExplosionChance;
+    private long shieldUntil = 0L;
     private final Map<UUID, Long> playerLastHitTime = new ConcurrentHashMap<>();
 
     public ParadiseShard(Location location, double baseExplosionChance) {
@@ -77,6 +78,19 @@ public class ParadiseShard {
     public void resetExplosionChance(double base) {
         this.currentExplosionChance = base;
         this.hitCount = 0;
+        this.shieldUntil = 0L;
+    }
+
+    public long getShieldUntil() {
+        return shieldUntil;
+    }
+
+    public void setShieldUntil(long shieldUntil) {
+        this.shieldUntil = shieldUntil;
+    }
+
+    public boolean isShieldActive() {
+        return System.currentTimeMillis() < shieldUntil;
     }
 
     public boolean canPlayerHit(UUID uuid, long delayMs) {
