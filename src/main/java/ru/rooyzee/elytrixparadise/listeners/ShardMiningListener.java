@@ -21,13 +21,20 @@ public class ShardMiningListener implements Listener {
         this.plugin = plugin;
     }
 
+    private boolean isShardMaterial(Material type) {
+        return type == Material.RED_GLAZED_TERRACOTTA || type == Material.GRAY_GLAZED_TERRACOTTA;
+    }
+
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onBlockBreak(BlockBreakEvent event) {
         Block block = event.getBlock();
-        if (block.getType() == Material.RED_GLAZED_TERRACOTTA || block.getType() == Material.GRAY_GLAZED_TERRACOTTA) {
+        if (isShardMaterial(block.getType())) {
+            event.setCancelled(true);
             ParadiseShard shard = plugin.getShardManager().getShard(block.getLocation());
+            if (shard == null) {
+                shard = plugin.getShardManager().registerShard(block.getLocation());
+            }
             if (shard != null) {
-                event.setCancelled(true);
                 plugin.getShardManager().handleShardHit(event.getPlayer(), block.getLocation());
             }
         }
@@ -36,10 +43,13 @@ public class ShardMiningListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void onBlockDamage(BlockDamageEvent event) {
         Block block = event.getBlock();
-        if (block.getType() == Material.RED_GLAZED_TERRACOTTA || block.getType() == Material.GRAY_GLAZED_TERRACOTTA) {
+        if (isShardMaterial(block.getType())) {
+            event.setCancelled(true);
             ParadiseShard shard = plugin.getShardManager().getShard(block.getLocation());
+            if (shard == null) {
+                shard = plugin.getShardManager().registerShard(block.getLocation());
+            }
             if (shard != null) {
-                event.setCancelled(true);
                 plugin.getShardManager().handleShardHit(event.getPlayer(), block.getLocation());
             }
         }
@@ -47,24 +57,15 @@ public class ShardMiningListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onPlayerInteract(PlayerInteractEvent event) {
-        if (event.getAction() == Action.LEFT_CLICK_BLOCK) {
-            Block block = event.getClickedBlock();
-            if (block != null && (block.getType() == Material.RED_GLAZED_TERRACOTTA || block.getType() == Material.GRAY_GLAZED_TERRACOTTA)) {
-                ParadiseShard shard = plugin.getShardManager().getShard(block.getLocation());
-                if (shard != null) {
-                    event.setCancelled(true);
-                    plugin.getShardManager().handleShardHit(event.getPlayer(), block.getLocation());
-                }
+        Block block = event.getClickedBlock();
+        if (block != null && isShardMaterial(block.getType())) {
+            event.setCancelled(true);
+            ParadiseShard shard = plugin.getShardManager().getShard(block.getLocation());
+            if (shard == null) {
+                shard = plugin.getShardManager().registerShard(block.getLocation());
             }
-        } else if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-            Block block = event.getClickedBlock();
-            if (block != null && (block.getType() == Material.RED_GLAZED_TERRACOTTA || block.getType() == Material.GRAY_GLAZED_TERRACOTTA)) {
-                ParadiseShard shard = plugin.getShardManager().getShard(block.getLocation());
-                if (shard != null) {
-                    event.setCancelled(true);
-                    Player player = event.getPlayer();
-                    plugin.getShardManager().handleShardHit(player, block.getLocation());
-                }
+            if (shard != null && event.getAction() == Action.LEFT_CLICK_BLOCK) {
+                plugin.getShardManager().handleShardHit(event.getPlayer(), block.getLocation());
             }
         }
     }

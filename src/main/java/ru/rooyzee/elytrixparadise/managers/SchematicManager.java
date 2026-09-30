@@ -17,6 +17,7 @@ import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.regions.CuboidRegion;
 import com.sk89q.worldedit.session.ClipboardHolder;
 import com.sk89q.worldedit.world.block.BlockTypes;
+import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -231,9 +232,9 @@ public class SchematicManager {
         int chunkX = target.getBlockX() >> 4;
         int chunkZ = target.getBlockZ() >> 4;
 
-        // Ensure chunks in the radius are loaded
-        for (int cx = chunkX - 3; cx <= chunkX + 3; cx++) {
-            for (int cz = chunkZ - 3; cz <= chunkZ + 3; cz++) {
+        // Ensure chunks in the wide radius are loaded (radius 8 chunks = 128 blocks)
+        for (int cx = chunkX - 8; cx <= chunkX + 8; cx++) {
+            for (int cz = chunkZ - 8; cz <= chunkZ + 8; cz++) {
                 if (!world.isChunkLoaded(cx, cz)) {
                     world.getChunkAt(cx, cz);
                 }
@@ -265,7 +266,7 @@ public class SchematicManager {
 
             Operations.complete(operation);
 
-            // Compute bounding box for shard scanning and cleanup on disable
+            // Compute bounding box
             BlockVector3 origin = clipboard.getOrigin();
             this.lastPastedMin = clipboard.getMinimumPoint().subtract(origin).add(to);
             this.lastPastedMax = clipboard.getMaximumPoint().subtract(origin).add(to);
@@ -274,7 +275,7 @@ public class SchematicManager {
             plugin.getLogger().info("✓ Схематика " + name + " успешно вставлена на координаты X="
                     + target.getBlockX() + ", Y=" + (target.getBlockY() + offsetY) + ", Z=" + target.getBlockZ());
 
-            // Scan and register Red Glazed Terracotta Shards of Paradise
+            // Scan for shards
             scanAndRegisterShards();
 
             return true;
@@ -285,59 +286,54 @@ public class SchematicManager {
         }
     }
 
-    public void scanAndRegisterShards() {
-        if (lastPastedMin == null || lastPastedMax == null || lastPastedWorld == null) {
-            // Fallback scan around center
-            Location center = plugin.getConfigManager().getCenterLocation();
-            scanAroundLocation(center, 40, 20);
-            return;
-        }
-
-        int minX = lastPastedMin.getX() - 2;
-        int maxX = lastPastedMax.getX() + 2;
-        int minY = Math.max(1, lastPastedMin.getY() - 2);
-        int maxY = Math.min(255, lastPastedMax.getY() + 2);
-        int minZ = lastPastedMin.getZ() - 2;
-        int maxZ = lastPastedMax.getZ() + 2;
-
-        int found = 0;
-        for (int x = minX; x <= maxX; x++) {
-            for (int y = minY; y <= maxY; y++) {
-                for (int z = minZ; z <= maxZ; z++) {
-                    Block b = lastPastedWorld.getBlockAt(x, y, z);
-                    if (b.getType() == Material.RED_GLAZED_TERRACOTTA || b.getType() == Material.GRAY_GLAZED_TERRACOTTA) {
-                        plugin.getShardManager().registerShard(new Location(lastPastedWorld, x, y, z));
-                        found++;
-                    }
-                }
-            }
-        }
-        plugin.getLogger().info("Найдено и зарегистрировано Осколков Рая: " + found);
-    }
-
-    private void scanAroundLocation(Location center, int radiusXZ, int radiusY) {
+    public int scanAndRegisterShards() {
+        Location center = plugin.getConfigManager().getCenterLocation();
         World world = center.getWorld();
+        if (world == null) return 0;
+
+        int radiusXZ = plugin.getConfigManager().getScanRadiusXZ(); // 120 blocks
+        int minY = plugin.getConfigManager().getScanMinY(); // 140
+        int maxY = plugin.getConfigManager().getScanMaxY(); // 215
+
         int cx = center.getBlockX();
-        int cy = center.getBlockY();
         int cz = center.getBlockZ();
 
+        int minChunkX = (cx - radiusXZ) >> 4;
+        int maxChunkX = (cx + radiusXZ) >> 4;
+        int minChunkZ = (cz - radiusXZ) >> 4;
+        int maxChunkZ = (cz + radiusXZ) >> 4;
+
         int found = 0;
-        for (int x = cx - radiusXZ; x <= cx + radiusXZ; x++) {
-            for (int y = cy - radiusY; y <= cy + radiusY; y++) {
-                for (int z = cz - radiusXZ; z <= cz + radiusXZ; z++) {
-                    Block b = world.getBlockAt(x, y, z);
-                    if (b.getType() == Material.RED_GLAZED_TERRACOTTA || b.getType() == Material.GRAY_GLAZED_TERRACOTTA) {
-                        plugin.getShardManager().registerShard(new Location(world, x, y, z));
-                        found++;
+        for (int chX = minChunkX; chX <= maxChunkX; chX++) {
+            for (int chZ = minChunkZ; chZ <= maxChunkZ; chZ++) {
+                if (!world.isChunkLoaded(chX, chZ)) {
+                    world.getChunkAt(chX, chZ);
+                }
+                Chunk chunk = world.getChunkAt(chX, chZ);
+                for (int x = 0; x < 16; x++) {
+                    int worldX = (chX << 4) + x;
+                    if (Math.abs(worldX - cx) > radiusXZ) continue;
+                    for (int z = 0; z < 16; z++) {
+                        int worldZ = (chZ << 4) + z;
+                        if (Math.abs(worldZ - cz) > radiusXZ) continue;
+                        for (int y = minY; y <= maxY; y++) {
+                            Block b = chunk.getBlock(x, y, z);
+                            Material type = b.getType();
+                            if (type == Material.RED_GLAZED_TERRACOTTA || type == Material.GRAY_GLAZED_TERRACOTTA) {
+                                plugin.getShardManager().registerShard(new Location(world, worldX, y, worldZ));
+                                found++;
+                            }
+                        }
                     }
                 }
             }
         }
-        plugin.getLogger().info("Найдено и зарегистрировано Осколков Рая вокруг центра: " + found);
+
+        plugin.getLogger().info("Найдено и зарегистрировано Осколков Рая: " + found + " (радиус: " + radiusXZ + " блоков)");
+        return found;
     }
 
     public void clearSchematic() {
-        // 1. Remove all shard holograms and states
         if (plugin.getShardManager() != null) {
             plugin.getShardManager().clearAllShards();
         }
@@ -354,7 +350,6 @@ public class SchematicManager {
             editSession.setBlocks(region, BlockTypes.AIR.getDefaultState());
             plugin.getLogger().info("Область схематики Райского места очищена.");
         } catch (Throwable t) {
-            // Fallback block clearing
             try {
                 for (int x = lastPastedMin.getX(); x <= lastPastedMax.getX(); x++) {
                     for (int y = lastPastedMin.getY(); y <= lastPastedMax.getY(); y++) {

@@ -33,13 +33,14 @@ public class ActionBarTask extends BukkitRunnable {
         int totalShards = plugin.getShardManager().getAllShards().size();
 
         tickCount++;
-        boolean alt = (tickCount % 2 == 0);
+        // Switch general message smoothly every 6 seconds (not every second)
+        int phase = (tickCount / 6) % 2;
 
         for (Player player : world.getPlayers()) {
             Location pLoc = player.getLocation();
             double dy = pLoc.getY();
 
-            // Strict 3D Proximity Check: only show actionbar if in event Y range (not running on ground)
+            // 3D Proximity Check: only show actionbar if in event Y range (not running on ground)
             if (dy < minY || dy > maxY) {
                 continue;
             }
@@ -50,10 +51,10 @@ public class ActionBarTask extends BukkitRunnable {
                 continue;
             }
 
-            // Check if player is right next to a shard (< 4 blocks)
+            // Check if player is near a specific shard (< 6 blocks)
             ParadiseShard nearbyShard = null;
             for (ParadiseShard s : plugin.getShardManager().getAllShards()) {
-                if (s.getLocation().distanceSquared(pLoc) <= 16.0) {
+                if (s.getLocation().getWorld().equals(pLoc.getWorld()) && s.getLocation().distanceSquared(pLoc) <= 36.0) {
                     nearbyShard = s;
                     break;
                 }
@@ -69,7 +70,7 @@ public class ActionBarTask extends BukkitRunnable {
                     msg = "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBОсколок Рая &8| &cПерезарядка &8| &#F8BEFB" + timeStr;
                 }
             } else {
-                if (alt) {
+                if (phase == 0) {
                     msg = "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место &8| &fОсколков активно: &#F8BEFB" + activeShards + "&7/&#F8BEFB" + totalShards;
                 } else {
                     msg = "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место &8| &fДобывай осколки ради наград";

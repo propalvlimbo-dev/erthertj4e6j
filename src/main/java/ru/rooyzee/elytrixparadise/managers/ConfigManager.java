@@ -41,9 +41,13 @@ public class ConfigManager {
     private boolean ignoreAir = true;
     private int schematicOffsetY = 0;
 
-    private double actionbarRadiusXZ = 45.0;
-    private double actionbarMinY = 150.0;
-    private double actionbarMaxY = 195.0;
+    private double actionbarRadiusXZ = 120.0;
+    private double actionbarMinY = 140.0;
+    private double actionbarMaxY = 215.0;
+
+    private int scanRadiusXZ = 120;
+    private int scanMinY = 140;
+    private int scanMaxY = 215;
 
     private int shardCooldownSeconds = 600; // 10 minutes
     private double shardBaseExplosionChance = 2.0;
@@ -58,7 +62,7 @@ public class ConfigManager {
     private final List<LootItem> lootItems = new ArrayList<>();
 
     private String adminPrefix = "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» ";
-    private String playerPrefix = "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &#FFFFA0Райское место &7» ";
+    private String playerPrefix = "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место &7» ";
 
     private FileConfiguration messagesConfig;
     private File messagesFile;
@@ -89,9 +93,13 @@ public class ConfigManager {
         ignoreAir = config.getBoolean("schematic.ignore-air", true);
         schematicOffsetY = config.getInt("schematic.offset-y", 0);
 
-        actionbarRadiusXZ = config.getDouble("actionbar.radius-xz", 45.0);
-        actionbarMinY = config.getDouble("actionbar.min-y", 150.0);
-        actionbarMaxY = config.getDouble("actionbar.max-y", 195.0);
+        actionbarRadiusXZ = config.getDouble("actionbar.radius-xz", 120.0);
+        actionbarMinY = config.getDouble("actionbar.min-y", 140.0);
+        actionbarMaxY = config.getDouble("actionbar.max-y", 215.0);
+
+        scanRadiusXZ = config.getInt("shards.scan-radius-xz", 120);
+        scanMinY = config.getInt("shards.scan-min-y", 140);
+        scanMaxY = config.getInt("shards.scan-max-y", 215);
 
         shardCooldownSeconds = config.getInt("shards.cooldown-seconds", 600);
         shardBaseExplosionChance = config.getDouble("shards.base-explosion-chance", 2.0);
@@ -149,11 +157,11 @@ public class ConfigManager {
     }
 
     private void addDefaultLoot() {
-        lootItems.add(new LootItem(Material.DIAMOND, 1, 2, 25.0, "&#FFFFA0✦ Райский Алмаз", null, null));
-        lootItems.add(new LootItem(Material.EMERALD, 1, 4, 40.0, "&#A0FFA0✦ Небесный Изумруд", null, null));
+        lootItems.add(new LootItem(Material.DIAMOND, 1, 2, 25.0, "&#F8BEFBРайский Алмаз", null, null));
+        lootItems.add(new LootItem(Material.EMERALD, 1, 4, 40.0, "&#F8BEFBНебесный Изумруд", null, null));
         lootItems.add(new LootItem(Material.GOLD_INGOT, 2, 6, 60.0, null, null, null));
         lootItems.add(new LootItem(Material.IRON_INGOT, 3, 8, 70.0, null, null, null));
-        lootItems.add(new LootItem(Material.GOLDEN_APPLE, 1, 1, 15.0, "&#F8BEFB✦ Райское Яблоко", null, null));
+        lootItems.add(new LootItem(Material.GOLDEN_APPLE, 1, 1, 15.0, "&#F8BEFBРайское Яблоко", null, null));
         lootItems.add(new LootItem(Material.EXPERIENCE_BOTTLE, 2, 5, 50.0, null, null, null));
     }
 
@@ -170,7 +178,7 @@ public class ConfigManager {
         } catch (Exception ignored) {}
 
         adminPrefix = messagesConfig.getString("prefix.admin", "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» ");
-        playerPrefix = messagesConfig.getString("prefix.player", "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &#FFFFA0Райское место &7» ");
+        playerPrefix = messagesConfig.getString("prefix.player", "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место &7» ");
     }
 
     public String getMessage(String path) {
@@ -249,6 +257,9 @@ public class ConfigManager {
     public double getActionbarRadiusXZ() { return actionbarRadiusXZ; }
     public double getActionbarMinY() { return actionbarMinY; }
     public double getActionbarMaxY() { return actionbarMaxY; }
+    public int getScanRadiusXZ() { return scanRadiusXZ; }
+    public int getScanMinY() { return scanMinY; }
+    public int getScanMaxY() { return scanMaxY; }
     public int getShardCooldownSeconds() { return shardCooldownSeconds; }
     public double getShardBaseExplosionChance() { return shardBaseExplosionChance; }
     public double getShardChanceIncreasePerHit() { return shardChanceIncreasePerHit; }

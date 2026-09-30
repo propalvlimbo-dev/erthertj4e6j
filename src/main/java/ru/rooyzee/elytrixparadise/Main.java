@@ -63,9 +63,22 @@ public class Main extends JavaPlugin {
                     + center.getBlockX() + ", Y=" + center.getBlockY() + ", Z=" + center.getBlockZ()
                     + " в мире '" + configManager.getWorldName() + "'...");
             schematicManager.pasteSchematic(schemName, center);
+        } else {
+            // Если вставка отключена, просто сканируем существующие осколки
+            schematicManager.scanAndRegisterShards();
         }
 
-        // 7. Регистрация команд
+        // 7. Повторное сканирование через 2 секунды после полной загрузки всех плагинов (включая DecentHolograms)
+        Bukkit.getScheduler().runTaskLater(this, new Runnable() {
+            @Override
+            public void run() {
+                if (schematicManager != null) {
+                    schematicManager.scanAndRegisterShards();
+                }
+            }
+        }, 40L);
+
+        // 8. Регистрация команд
         ParadiseCommand cmd = new ParadiseCommand(this);
         PluginCommand pluginCmd = getCommand("elytrixparadise");
         if (pluginCmd != null) {
@@ -76,6 +89,7 @@ public class Main extends JavaPlugin {
         getLogger().info("=========================================");
         getLogger().info("  ElytrixParadise v" + getDescription().getVersion() + " [Райское место] включён!");
         getLogger().info("  Координаты ивента: X=0, Y=" + configManager.getCenterY() + ", Z=0");
+        getLogger().info("  Радиус сканирования: " + configManager.getScanRadiusXZ() + " блоков");
         getLogger().info("  Папка для схематик: plugins/ElytrixParadise/schematics/");
         getLogger().info("  Файл схематики: " + configManager.getSchematicFile());
         getLogger().info("=========================================");
@@ -90,7 +104,6 @@ public class Main extends JavaPlugin {
             actionBarTask.cancel();
         }
 
-        // Удаление схематики и очистка осколков/голограмм при выключении плагина
         if (schematicManager != null) {
             if (configManager != null && configManager.isClearOnDisable()) {
                 schematicManager.clearSchematic();
