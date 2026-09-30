@@ -28,10 +28,20 @@ blocked-commands:
   - "tpaccept"
   - "spawn"
 
-# Эффект утомления (Mining Fatigue) для усложнения и продления добычи
+# Эффект утомления (Mining Fatigue) возле активных осколков
 mining-fatigue:
   enabled: true
   level: 2 # Уровень утомления: 2 (Утомление II) или 3 (Утомление III)
+
+# Настройки Центральной Сферы (Сердце Рая) и 6 цепей
+sphere:
+  max-hp: 200
+  chain-hp: 50
+  cooldown-seconds: 1800
+  jump-boost:
+    enabled: true
+    level: 5 # Высокая прыгучесть (Прыгучесть V) пока сфера висит на цепях
+    room-radius: 22.0 # Радиус купольного зала храма
 
 actionbar:
   radius-xz: 150.0

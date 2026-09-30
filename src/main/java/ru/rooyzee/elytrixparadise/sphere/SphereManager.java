@@ -11,6 +11,8 @@ import org.bukkit.entity.EntityType;
 import org.bukkit.entity.ExperienceOrb;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
@@ -65,7 +67,7 @@ public class SphereManager {
     }
 
     /**
-     * Сканирует существующие в мире блоки сферы (BLUE_GLAZED_TERRACOTTA) и цепей (CHAIN)
+     * Сканирует существующие в мире блоки сферы (BLUE_GLAZED_TERRACOTTA) и 6 цепей (CHAIN)
      * из вставленной схематики, не создавая никаких лишних или искусственных блоков!
      */
     public void scanExistingSphereAndChains(Location center) {
@@ -78,7 +80,7 @@ public class SphereManager {
         int cz = center.getBlockZ();
 
         int scanRadiusXZ = 25;
-        int minY = Math.max(0, cy + 3);
+        int minY = Math.max(0, cy + 1);
         int maxY = Math.min(255, cy + 35);
 
         List<Location> foundSphereLocs = new ArrayList<>();
@@ -124,33 +126,46 @@ public class SphereManager {
             plugin.getLogger().info("Найдена Центральная Сфера (BLUE_GLAZED_TERRACOTTA): "
                     + sphereBlocks.size() + " блоков на высоте Y=" + avgY);
         } else {
-            // Fallback если по какой-то причине в схеме нет синей керамики
             this.sphereHighCenter = new Location(world, cx, cy + 18, cz);
             this.sphereFallenCenter = new Location(world, cx, cy + 3, cz);
         }
 
-        // 2. Группировка найденных существующих цепей схематики по 4 сторонам
+        // 2. Группировка найденных существующих 6 цепей схематики: 4 горизонтальных + 2 вертикальных (сверху и снизу)
         int chainHp = plugin.getConfig().getInt("sphere.chain-hp", 50);
         ChainNode north = new ChainNode(1, "Северная цепь", chainHp);
         ChainNode south = new ChainNode(2, "Южная цепь", chainHp);
         ChainNode east = new ChainNode(3, "Восточная цепь", chainHp);
         ChainNode west = new ChainNode(4, "Западная цепь", chainHp);
+        ChainNode top = new ChainNode(5, "Верхняя цепь", chainHp);
+        ChainNode bottom = new ChainNode(6, "Нижняя цепь", chainHp);
 
         int sphereCenterX = sphereHighCenter.getBlockX();
+        int sphereCenterY = sphereHighCenter.getBlockY();
         int sphereCenterZ = sphereHighCenter.getBlockZ();
 
         for (Location cLoc : foundChainLocs) {
             int dx = cLoc.getBlockX() - sphereCenterX;
+            int dy = cLoc.getBlockY() - sphereCenterY;
             int dz = cLoc.getBlockZ() - sphereCenterZ;
             Block b = cLoc.getBlock();
 
+            // 1) Вертикальные цепи (к куполу сверху или к алтарю снизу)
+            if (Math.abs(dx) <= 1 && Math.abs(dz) <= 1) {
+                if (dy > 1) {
+                    top.addBlock(cLoc, b.getBlockData());
+                    continue;
+                } else if (dy < -1) {
+                    bottom.addBlock(cLoc, b.getBlockData());
+                    continue;
+                }
+            }
+
+            // 2) Горизонтальные цепи к 4 стенам/колоннам
             if (Math.abs(dz) >= Math.abs(dx)) {
                 if (dz > 0) {
                     north.addBlock(cLoc, b.getBlockData());
-                } else if (dz < 0) {
-                    south.addBlock(cLoc, b.getBlockData());
                 } else {
-                    north.addBlock(cLoc, b.getBlockData());
+                    south.addBlock(cLoc, b.getBlockData());
                 }
             } else {
                 if (dx > 0) {
@@ -165,9 +180,11 @@ public class SphereManager {
         if (!south.getChainBlocks().isEmpty()) chains.add(south);
         if (!east.getChainBlocks().isEmpty()) chains.add(east);
         if (!west.getChainBlocks().isEmpty()) chains.add(west);
+        if (!top.getChainBlocks().isEmpty()) chains.add(top);
+        if (!bottom.getChainBlocks().isEmpty()) chains.add(bottom);
 
         plugin.getLogger().info("Найдено и сгруппировано существующих цепей схематики: "
-                + chains.size() + " ветвей (всего " + foundChainLocs.size() + " блоков цепей).");
+                + chains.size() + " цепей (всего " + foundChainLocs.size() + " блоков цепей).");
     }
 
     public void clearChainBlocks(ChainNode chain) {
@@ -305,8 +322,11 @@ public class SphereManager {
         if (state == SphereState.FALLING || state == SphereState.FALLEN_MINING) return;
         state = SphereState.FALLING;
 
+        // Снимаем эффект прыгучести со всех игроков при падении сферы
+        removeJumpBoostFromPlayers();
+
         String prefix = plugin.getConfigManager().getAdminPrefix();
-        Bukkit.broadcastMessage(ColorUtil.colorize(prefix + "&c&lВсе цепи разорваны! &#F8BEFBСердце Рая обрушивается вниз на алтарь!"));
+        Bukkit.broadcastMessage(ColorUtil.colorize(prefix + "&c&lВсе 6 цепей разорваны! &#F8BEFBСердце Рая обрушивается вниз на алтарь!"));
 
         // Удаляем все голограммы цепей
         for (ChainNode c : chains) {
@@ -473,7 +493,7 @@ public class SphereManager {
     }
 
     /**
-     * Плавная сборка и соединение всех цепей звено за звеном
+     * Плавная сборка и соединение всех 6 цепей звено за звеном
      */
     public void startChainRestorationSequence() {
         state = SphereState.RESTORING_CHAINS;
@@ -533,17 +553,66 @@ public class SphereManager {
         updateAllHolograms();
 
         String prefix = plugin.getConfigManager().getAdminPrefix();
-        Bukkit.broadcastMessage(ColorUtil.colorize(prefix + "&#F8BEFBСердце Рая и цепи полностью восстановлены!"));
+        Bukkit.broadcastMessage(ColorUtil.colorize(prefix + "&#F8BEFBСердце Рая и все 6 цепей полностью восстановлены!"));
         if (sphereHighCenter.getWorld() != null) {
             sphereHighCenter.getWorld().playSound(sphereHighCenter, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.5f, 1.0f);
         }
     }
 
     public void tick() {
+        // Управление гравитацией (высокой прыгучестью) в купольной комнате сферы
+        handleRoomGravity();
+
         if (state == SphereState.COOLDOWN) {
             cooldownRemaining--;
             if (cooldownRemaining <= 0) {
                 finishRestoration();
+            }
+        }
+    }
+
+    /**
+     * Пока сфера висит на цепях (INTACT), игрокам в купольной комнате даётся высокая прыгучесть.
+     * Как только все цепи срублены и сфера падает — прыгучесть/гравитация пропадает!
+     */
+    private void handleRoomGravity() {
+        Location center = plugin.getConfigManager().getCenterLocation();
+        if (center == null || center.getWorld() == null) return;
+        World world = center.getWorld();
+
+        boolean jumpBoostEnabled = plugin.getConfig().getBoolean("sphere.jump-boost.enabled", true);
+        double roomRadius = plugin.getConfig().getDouble("sphere.jump-boost.room-radius", 22.0);
+        double roomRadiusSq = roomRadius * roomRadius;
+        int jumpLevel = plugin.getConfig().getInt("sphere.jump-boost.level", 5);
+        int amplifier = Math.max(0, jumpLevel - 1);
+
+        for (Player p : world.getPlayers()) {
+            Location pl = p.getLocation();
+            double dx = pl.getX() - center.getX();
+            double dz = pl.getZ() - center.getZ();
+            double dy = pl.getY() - center.getY();
+
+            boolean insideRoom = (dx * dx + dz * dz <= roomRadiusSq) && (dy >= -2 && dy <= 38);
+
+            if (insideRoom && state == SphereState.INTACT && jumpBoostEnabled) {
+                if (p.getGameMode() != GameMode.CREATIVE && p.getGameMode() != GameMode.SPECTATOR) {
+                    p.addPotionEffect(new PotionEffect(PotionEffectType.JUMP, 60, amplifier, true, false, true), true);
+                }
+            } else {
+                if (p.hasPotionEffect(PotionEffectType.JUMP) && !p.hasPermission("elytrixparadise.jump.keep")) {
+                    p.removePotionEffect(PotionEffectType.JUMP);
+                }
+            }
+        }
+    }
+
+    private void removeJumpBoostFromPlayers() {
+        Location center = plugin.getConfigManager().getCenterLocation();
+        if (center == null || center.getWorld() == null) return;
+        World world = center.getWorld();
+        for (Player p : world.getPlayers()) {
+            if (p.hasPotionEffect(PotionEffectType.JUMP) && !p.hasPermission("elytrixparadise.jump.keep")) {
+                p.removePotionEffect(PotionEffectType.JUMP);
             }
         }
     }
@@ -582,7 +651,7 @@ public class SphereManager {
         List<String> lines = new ArrayList<>();
         lines.add(ColorUtil.colorize("&f☁ &#F8BEFBСердце Рая &f☁"));
         lines.add(ColorUtil.colorize("&e● &fЦепей цело: &#F8BEFB" + (chains.size() - getBrokenChainsCount()) + "&7/&#F8BEFB" + chains.size()));
-        lines.add(ColorUtil.colorize("&7● &fРазрушьте все цепи, чтобы сфера упала!"));
+        lines.add(ColorUtil.colorize("&7● &fРазрушьте все 6 цепей, чтобы сфера упала!"));
 
         createOrUpdateHolo("ep_sphere_hanging", holoLoc, lines);
     }
