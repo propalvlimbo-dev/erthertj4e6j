@@ -17,6 +17,22 @@ schematic:
   ignore-air: true
   offset-y: 0
 
+# Запрещённые команды в регионе Райского места
+blocked-commands:
+  - "setwarp"
+  - "warp"
+  - "sethome"
+  - "home"
+  - "tp"
+  - "tpa"
+  - "tpaccept"
+  - "spawn"
+
+# Эффект утомления (Mining Fatigue) для усложнения и продления добычи
+mining-fatigue:
+  enabled: true
+  level: 2 # Уровень утомления: 2 (Утомление II) или 3 (Утомление III)
+
 actionbar:
   radius-xz: 150.0
   min-y: 0.0

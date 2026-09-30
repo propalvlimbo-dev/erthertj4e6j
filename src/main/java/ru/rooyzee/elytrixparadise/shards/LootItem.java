@@ -33,6 +33,11 @@ public class LootItem {
         this.enchantments = enchantments != null ? enchantments : new HashMap<Enchantment, Integer>();
     }
 
+    public LootItem(Material material, int minAmount, int maxAmount, double chance,
+                    String customName, List<String> lore) {
+        this(material, minAmount, maxAmount, chance, customName, lore, null);
+    }
+
     public Material getMaterial() {
         return material;
     }

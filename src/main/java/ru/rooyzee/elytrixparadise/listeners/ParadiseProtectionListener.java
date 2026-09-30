@@ -6,6 +6,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerToggleFlightEvent;
@@ -13,6 +14,7 @@ import ru.rooyzee.elytrixparadise.Main;
 import ru.rooyzee.elytrixparadise.utils.ColorUtil;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -28,6 +30,36 @@ public class ParadiseProtectionListener implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
         warnedFlyPlayers.remove(e.getPlayer().getUniqueId());
+    }
+
+    /**
+     * Блокировка команд (/setwarp, /warp, /sethome, /home, /tp, /spawn и т.д.) внутри зоны Райского места
+     */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onCommandPreprocess(PlayerCommandPreprocessEvent event) {
+        Player player = event.getPlayer();
+        if (player.hasPermission("elytrixparadise.bypass.commands")) return;
+
+        if (plugin.getRegionManager().isInParadiseRegion(player.getLocation())) {
+            String fullMsg = event.getMessage().trim();
+            if (fullMsg.startsWith("/")) {
+                String cmdName = fullMsg.substring(1).split(" ")[0].toLowerCase();
+                if (cmdName.contains(":")) {
+                    cmdName = cmdName.substring(cmdName.indexOf(":") + 1);
+                }
+
+                List<String> blocked = plugin.getConfigManager().getBlockedCommands();
+                for (String b : blocked) {
+                    if (cmdName.equalsIgnoreCase(b)) {
+                        event.setCancelled(true);
+                        String prefix = plugin.getConfigManager().getAdminPrefix();
+                        player.sendMessage(ColorUtil.colorize(prefix + "&cИспользование команды &f/" + cmdName + " &cзапрещено в зоне Райского места!"));
+                        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 1.0f, 0.5f);
+                        return;
+                    }
+                }
+            }
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
