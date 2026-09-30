@@ -14,6 +14,9 @@ import org.bukkit.event.block.BlockDamageEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import ru.rooyzee.elytrixparadise.Main;
 import ru.rooyzee.elytrixparadise.shards.ParadiseShard;
+import ru.rooyzee.elytrixparadise.sphere.ChainNode;
+import ru.rooyzee.elytrixparadise.sphere.SphereManager;
+import ru.rooyzee.elytrixparadise.sphere.SphereState;
 import ru.rooyzee.elytrixparadise.utils.ColorUtil;
 
 public class ShardMiningListener implements Listener {
@@ -41,8 +44,28 @@ public class ShardMiningListener implements Listener {
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (event.getAction() == Action.LEFT_CLICK_BLOCK && event.getClickedBlock() != null) {
             Block block = event.getClickedBlock();
+            Player player = event.getPlayer();
+
+            // 1. Проверка клика по цепи
+            SphereManager sm = plugin.getSphereManager();
+            if (sm != null && block.getType() == Material.CHAIN) {
+                ChainNode chain = sm.getChainAt(block.getLocation());
+                if (chain != null && !chain.isBroken()) {
+                    event.setCancelled(true);
+                    sm.handleChainHit(player, block.getLocation());
+                    return;
+                }
+            }
+
+            // 2. Проверка клика по упавшей сфере
+            if (sm != null && sm.getState() == SphereState.FALLEN_MINING && sm.isSphereBlock(block.getLocation())) {
+                event.setCancelled(true);
+                sm.handleFallenSphereHit(player, block.getLocation());
+                return;
+            }
+
+            // 3. Проверка клика по осколку
             if (isShardBlock(block)) {
-                Player player = event.getPlayer();
                 if (player.getGameMode() == GameMode.CREATIVE) {
                     event.setCancelled(true);
                     ParadiseShard shard = plugin.getShardManager().getShard(block.getLocation());
@@ -65,6 +88,23 @@ public class ShardMiningListener implements Listener {
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
     public void onBlockBreakLowest(BlockBreakEvent event) {
         Block block = event.getBlock();
+        SphereManager sm = plugin.getSphereManager();
+
+        if (sm != null) {
+            if (block.getType() == Material.CHAIN && sm.getChainAt(block.getLocation()) != null) {
+                event.setCancelled(true);
+                event.setDropItems(false);
+                event.setExpToDrop(0);
+                return;
+            }
+            if (sm.getState() == SphereState.FALLEN_MINING && sm.isSphereBlock(block.getLocation())) {
+                event.setCancelled(true);
+                event.setDropItems(false);
+                event.setExpToDrop(0);
+                return;
+            }
+        }
+
         if (isShardBlock(block)) {
             event.setCancelled(true);
             event.setDropItems(false);
@@ -75,12 +115,36 @@ public class ShardMiningListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onBlockBreak(BlockBreakEvent event) {
         final Block block = event.getBlock();
+        final Player player = event.getPlayer();
+        SphereManager sm = plugin.getSphereManager();
+
+        // 1. Обработка удара/ломания цепи
+        if (sm != null && block.getType() == Material.CHAIN) {
+            ChainNode chain = sm.getChainAt(block.getLocation());
+            if (chain != null && !chain.isBroken()) {
+                event.setCancelled(true);
+                event.setDropItems(false);
+                event.setExpToDrop(0);
+                sm.handleChainHit(player, block.getLocation());
+                return;
+            }
+        }
+
+        // 2. Обработка удара/ломания упавшей сферы
+        if (sm != null && sm.getState() == SphereState.FALLEN_MINING && sm.isSphereBlock(block.getLocation())) {
+            event.setCancelled(true);
+            event.setDropItems(false);
+            event.setExpToDrop(0);
+            sm.handleFallenSphereHit(player, block.getLocation());
+            return;
+        }
+
+        // 3. Обработка ломания осколков
         if (isShardBlock(block)) {
             event.setCancelled(true);
             event.setDropItems(false);
             event.setExpToDrop(0);
 
-            final Player player = event.getPlayer();
             ParadiseShard shard = plugin.getShardManager().getShard(block.getLocation());
             if (shard == null) {
                 shard = plugin.getShardManager().registerShard(block.getLocation());
@@ -128,13 +192,29 @@ public class ShardMiningListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void onBlockDamage(BlockDamageEvent event) {
         Block block = event.getBlock();
+        Player player = event.getPlayer();
+        SphereManager sm = plugin.getSphereManager();
+
+        if (sm != null) {
+            if (block.getType() == Material.CHAIN) {
+                ChainNode chain = sm.getChainAt(block.getLocation());
+                if (chain != null && !chain.isBroken()) {
+                    sm.handleChainHit(player, block.getLocation());
+                    return;
+                }
+            }
+            if (sm.getState() == SphereState.FALLEN_MINING && sm.isSphereBlock(block.getLocation())) {
+                sm.handleFallenSphereHit(player, block.getLocation());
+                return;
+            }
+        }
+
         if (isShardBlock(block)) {
             ParadiseShard shard = plugin.getShardManager().getShard(block.getLocation());
             if (shard == null) {
                 shard = plugin.getShardManager().registerShard(block.getLocation());
             }
             if (shard != null && shard.getState() == ParadiseShard.ShardState.COOLDOWN) {
-                Player player = event.getPlayer();
                 String prefix = plugin.getConfigManager().getAdminPrefix();
                 player.sendMessage(ColorUtil.colorize(prefix + "&cОсколок находится на перезарядке! &fОсталось: &#F8BEFB"
                         + ColorUtil.formatTimeShort(shard.getCooldownRemaining())));

@@ -22,6 +22,10 @@ public class ShardTickTask extends BukkitRunnable {
             plugin.getShardManager().tick();
         }
 
+        if (plugin.getSphereManager() != null) {
+            plugin.getSphereManager().tick();
+        }
+
         // Применение эффекта Утомления (Mining Fatigue) в зоне Райского места
         if (plugin.getConfigManager().isMiningFatigueEnabled()) {
             int level = plugin.getConfigManager().getMiningFatigueLevel();

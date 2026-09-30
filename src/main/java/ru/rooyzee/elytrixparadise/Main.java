@@ -14,6 +14,7 @@ import ru.rooyzee.elytrixparadise.managers.ConfigManager;
 import ru.rooyzee.elytrixparadise.managers.RegionManager;
 import ru.rooyzee.elytrixparadise.managers.SchematicManager;
 import ru.rooyzee.elytrixparadise.shards.ShardManager;
+import ru.rooyzee.elytrixparadise.sphere.SphereManager;
 import ru.rooyzee.elytrixparadise.tasks.ActionBarTask;
 import ru.rooyzee.elytrixparadise.tasks.ShardTickTask;
 
@@ -30,6 +31,7 @@ public class Main extends JavaPlugin {
     private RegionManager regionManager;
     private ShardManager shardManager;
     private SchematicManager schematicManager;
+    private SphereManager sphereManager;
 
     private BukkitTask shardTickTask;
     private BukkitTask actionBarTask;
@@ -54,6 +56,7 @@ public class Main extends JavaPlugin {
         regionManager = new RegionManager(this);
         shardManager = new ShardManager(this);
         schematicManager = new SchematicManager(this);
+        sphereManager = new SphereManager(this);
 
         // 4. Регистрация слушателей событий (добыча, защита осколков, запрет флая/года)
         PluginManager pm = Bukkit.getPluginManager();
@@ -89,15 +92,18 @@ public class Main extends JavaPlugin {
             );
         }
 
-        // 7. Повторное сканирование через 2 секунды после полной загрузки всех плагинов
+        // 7. Инициализация сферы и повторное сканирование осколков через 3 секунды
         Bukkit.getScheduler().runTaskLater(this, new Runnable() {
             @Override
             public void run() {
                 if (schematicManager != null) {
                     schematicManager.scanAndRegisterShards();
                 }
+                if (sphereManager != null) {
+                    sphereManager.init();
+                }
             }
-        }, 40L);
+        }, 60L);
 
         // 8. Регистрация команд
         ParadiseCommand cmd = new ParadiseCommand(this);
@@ -125,34 +131,21 @@ public class Main extends JavaPlugin {
             actionBarTask.cancel();
         }
 
+        if (sphereManager != null) {
+            sphereManager.clearAll();
+        }
+
         if (schematicManager != null) {
             if (configManager != null && configManager.isClearOnDisable()) {
                 schematicManager.clearSchematic();
             }
-            schematicManager.invalidateCache();
         }
 
         if (regionManager != null && configManager != null) {
             regionManager.removeParadiseRegion(configManager.getCenterLocation().getWorld());
         }
 
-        if (shardManager != null) {
-            shardManager.clearAllShards();
-        }
-
-        getLogger().info("ElytrixParadise отключён.");
-    }
-
-    public boolean isActionBarDisabled(UUID uuid) {
-        return disabledActionBarPlayers.contains(uuid);
-    }
-
-    public void setActionBarDisabled(UUID uuid, boolean disabled) {
-        if (disabled) {
-            disabledActionBarPlayers.add(uuid);
-        } else {
-            disabledActionBarPlayers.remove(uuid);
-        }
+        getLogger().info("ElytrixParadise успешно отключён.");
     }
 
     public static Main getInstance() {
@@ -173,5 +166,21 @@ public class Main extends JavaPlugin {
 
     public SchematicManager getSchematicManager() {
         return schematicManager;
+    }
+
+    public SphereManager getSphereManager() {
+        return sphereManager;
+    }
+
+    public boolean isActionBarDisabled(UUID uuid) {
+        return disabledActionBarPlayers.contains(uuid);
+    }
+
+    public void setActionBarDisabled(UUID uuid, boolean disabled) {
+        if (disabled) {
+            disabledActionBarPlayers.add(uuid);
+        } else {
+            disabledActionBarPlayers.remove(uuid);
+        }
     }
 }
