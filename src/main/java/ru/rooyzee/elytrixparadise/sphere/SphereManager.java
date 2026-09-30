@@ -38,7 +38,14 @@ public class SphereManager {
     private int maxSphereHp = 200;
     private int currentSphereHp = 200;
 
-    private int cooldownSeconds = 1800; // 30 min default
+    // Механика 6 взрывов сферы
+    private int explosionCount = 0;
+    private final int maxExplosions = 6;
+    private double currentExplosionChance = 8.0;
+    private final double baseExplosionChance = 8.0;
+    private final double explosionChanceStep = 1.2;
+
+    private int cooldownSeconds = 10800; // 3 часа (3 * 3600 = 10800 сек)
     private int cooldownRemaining = 0;
 
     private final Map<String, List<ArmorStand>> fallbackHolograms = new ConcurrentHashMap<>();
@@ -59,16 +66,18 @@ public class SphereManager {
 
         this.maxSphereHp = plugin.getConfig().getInt("sphere.max-hp", 200);
         this.currentSphereHp = maxSphereHp;
-        this.cooldownSeconds = plugin.getConfig().getInt("sphere.cooldown-seconds", 1800);
+        this.cooldownSeconds = plugin.getConfig().getInt("sphere.cooldown-seconds", 10800);
+        this.explosionCount = 0;
+        this.currentExplosionChance = baseExplosionChance;
 
-        // 1. Поиск существующей сферы из синей глазурованной керамики (BLUE_GLAZED_TERRACOTTA)
+        // Сканирование существующей сферы и 6 цепей из схематики
         scanExistingSphereAndChains(center);
         updateAllHolograms();
     }
 
     /**
      * Сканирует существующие в мире блоки сферы (BLUE_GLAZED_TERRACOTTA) и 6 цепей (CHAIN)
-     * из вставленной схематики, не создавая никаких лишних или искусственных блоков!
+     * из схематики без создания лишних блоков.
      */
     public void scanExistingSphereAndChains(Location center) {
         sphereBlocks.clear();
@@ -80,8 +89,8 @@ public class SphereManager {
         int cz = center.getBlockZ();
 
         int scanRadiusXZ = 25;
-        int minY = Math.max(0, cy + 1);
-        int maxY = Math.min(255, cy + 35);
+        int minY = Math.max(0, cy);
+        int maxY = Math.min(255, cy + 40);
 
         List<Location> foundSphereLocs = new ArrayList<>();
         List<Location> foundChainLocs = new ArrayList<>();
@@ -91,7 +100,7 @@ public class SphereManager {
                 for (int y = minY; y <= maxY; y++) {
                     Block b = world.getBlockAt(x, y, z);
                     Material type = b.getType();
-                    if (type == Material.BLUE_GLAZED_TERRACOTTA) {
+                    if (type == Material.BLUE_GLAZED_TERRACOTTA || type == Material.GRAY_GLAZED_TERRACOTTA) {
                         foundSphereLocs.add(b.getLocation());
                     } else if (type == Material.CHAIN) {
                         foundChainLocs.add(b.getLocation());
@@ -100,7 +109,6 @@ public class SphereManager {
             }
         }
 
-        // Если сфера найдена в схематике, вычисляем её центр
         if (!foundSphereLocs.isEmpty()) {
             double sumX = 0, sumY = 0, sumZ = 0;
             for (Location loc : foundSphereLocs) {
@@ -113,24 +121,24 @@ public class SphereManager {
             int avgZ = (int) Math.round(sumZ / foundSphereLocs.size());
 
             this.sphereHighCenter = new Location(world, avgX, avgY, avgZ);
-            this.sphereFallenCenter = new Location(world, avgX, cy + 3, avgZ);
+            // Высота падения: на 2 блока ниже прежнего (ровно на алтарь: Y = cy + 1)
+            this.sphereFallenCenter = new Location(world, avgX, cy + 1, avgZ);
 
             for (Location loc : foundSphereLocs) {
                 Block b = loc.getBlock();
                 int rx = loc.getBlockX() - avgX;
                 int ry = loc.getBlockY() - avgY;
                 int rz = loc.getBlockZ() - avgZ;
-                sphereBlocks.add(new SphereBlockInfo(loc, rx, ry, rz, b.getType(), b.getBlockData().clone()));
+                sphereBlocks.add(new SphereBlockInfo(loc, rx, ry, rz, Material.BLUE_GLAZED_TERRACOTTA, Material.BLUE_GLAZED_TERRACOTTA.createBlockData()));
             }
 
-            plugin.getLogger().info("Найдена Центральная Сфера (BLUE_GLAZED_TERRACOTTA): "
-                    + sphereBlocks.size() + " блоков на высоте Y=" + avgY);
+            plugin.getLogger().info("Найдено Сердце Рая: " + sphereBlocks.size() + " блоков на высоте Y=" + avgY);
         } else {
             this.sphereHighCenter = new Location(world, cx, cy + 18, cz);
-            this.sphereFallenCenter = new Location(world, cx, cy + 3, cz);
+            this.sphereFallenCenter = new Location(world, cx, cy + 1, cz);
         }
 
-        // 2. Группировка найденных существующих 6 цепей схематики: 4 горизонтальных + 2 вертикальных (сверху и снизу)
+        // 6 Цепей: 4 горизонтальных + 2 вертикальных (к куполу и к алтарю)
         int chainHp = plugin.getConfig().getInt("sphere.chain-hp", 50);
         ChainNode north = new ChainNode(1, "Северная цепь", chainHp);
         ChainNode south = new ChainNode(2, "Южная цепь", chainHp);
@@ -149,7 +157,7 @@ public class SphereManager {
             int dz = cLoc.getBlockZ() - sphereCenterZ;
             Block b = cLoc.getBlock();
 
-            // 1) Вертикальные цепи (к куполу сверху или к алтарю снизу)
+            // Вертикальные цепи
             if (Math.abs(dx) <= 1 && Math.abs(dz) <= 1) {
                 if (dy > 1) {
                     top.addBlock(cLoc, b.getBlockData());
@@ -160,7 +168,7 @@ public class SphereManager {
                 }
             }
 
-            // 2) Горизонтальные цепи к 4 стенам/колоннам
+            // Горизонтальные цепи
             if (Math.abs(dz) >= Math.abs(dx)) {
                 if (dz > 0) {
                     north.addBlock(cLoc, b.getBlockData());
@@ -183,8 +191,7 @@ public class SphereManager {
         if (!top.getChainBlocks().isEmpty()) chains.add(top);
         if (!bottom.getChainBlocks().isEmpty()) chains.add(bottom);
 
-        plugin.getLogger().info("Найдено и сгруппировано существующих цепей схематики: "
-                + chains.size() + " цепей (всего " + foundChainLocs.size() + " блоков цепей).");
+        plugin.getLogger().info("Зарегистрировано " + chains.size() + " цепей Сердца Рая (всего " + foundChainLocs.size() + " блоков).");
     }
 
     public void clearChainBlocks(ChainNode chain) {
@@ -203,7 +210,7 @@ public class SphereManager {
         }
     }
 
-    public void drawSphereAt(Location center) {
+    public void drawSphereAt(Location center, Material mat) {
         if (center == null || center.getWorld() == null) return;
         World world = center.getWorld();
         int cx = center.getBlockX();
@@ -212,7 +219,7 @@ public class SphereManager {
 
         for (SphereBlockInfo info : sphereBlocks) {
             Block b = world.getBlockAt(cx + info.getRelX(), cy + info.getRelY(), cz + info.getRelZ());
-            b.setBlockData(info.getBlockData(), false);
+            b.setType(mat, false);
         }
     }
 
@@ -226,6 +233,27 @@ public class SphereManager {
         for (SphereBlockInfo info : sphereBlocks) {
             Block b = world.getBlockAt(cx + info.getRelX(), cy + info.getRelY(), cz + info.getRelZ());
             b.setType(Material.AIR, false);
+        }
+    }
+
+    /**
+     * Отрисовывает сферу с прогрессивным переходом синей керамики в серую в зависимости от числа взрывов (0..6)
+     */
+    public void renderFallenSphereExplosionState() {
+        if (sphereFallenCenter == null || sphereFallenCenter.getWorld() == null) return;
+        World world = sphereFallenCenter.getWorld();
+        int cx = sphereFallenCenter.getBlockX();
+        int cy = sphereFallenCenter.getBlockY();
+        int cz = sphereFallenCenter.getBlockZ();
+
+        int total = sphereBlocks.size();
+        int grayCount = Math.min(total, (explosionCount * total) / maxExplosions);
+
+        for (int i = 0; i < total; i++) {
+            SphereBlockInfo info = sphereBlocks.get(i);
+            Block b = world.getBlockAt(cx + info.getRelX(), cy + info.getRelY(), cz + info.getRelZ());
+            Material target = (i < grayCount) ? Material.GRAY_GLAZED_TERRACOTTA : Material.BLUE_GLAZED_TERRACOTTA;
+            b.setType(target, false);
         }
     }
 
@@ -263,9 +291,9 @@ public class SphereManager {
     }
 
     /**
-     * Нанесение урона цепи при ударе игрока
+     * Нанесение урона цепи ТОЛЬКО при полном вскапывании/ломании блока киркой (BlockBreakEvent)
      */
-    public boolean handleChainHit(Player player, Location blockLoc) {
+    public boolean handleChainBreak(Player player, Location blockLoc) {
         if (state != SphereState.INTACT) return false;
         ChainNode chain = getChainAt(blockLoc);
         if (chain == null || chain.isBroken()) return false;
@@ -297,13 +325,12 @@ public class SphereManager {
             Bukkit.broadcastMessage(ColorUtil.colorize(prefix + "&#F8BEFB" + chain.getName() + " &cразорвана! &8(&c" + brokenCount + "&7/&c" + total + "&8)"));
 
             if (brokenCount >= total) {
-                // Все цепи сломаны -> Запуск падения сферы!
+                // Все 6 цепей сломаны -> Запуск падения сферы!
                 startFallingSequence();
             }
-        } else {
-            updateChainHologram(chain);
         }
 
+        updateAllHolograms();
         return true;
     }
 
@@ -316,19 +343,19 @@ public class SphereManager {
     }
 
     /**
-     * Анимация падения сферы вниз на алтарь
+     * Плавная и красивая анимация падения сферы вниз на алтарь
      */
     public void startFallingSequence() {
         if (state == SphereState.FALLING || state == SphereState.FALLEN_MINING) return;
         state = SphereState.FALLING;
 
-        // Снимаем эффект прыгучести со всех игроков при падении сферы
+        // Снимаем гравитацию/прыгучесть со всех игроков
         removeJumpBoostFromPlayers();
 
         String prefix = plugin.getConfigManager().getAdminPrefix();
         Bukkit.broadcastMessage(ColorUtil.colorize(prefix + "&c&lВсе 6 цепей разорваны! &#F8BEFBСердце Рая обрушивается вниз на алтарь!"));
 
-        // Удаляем все голограммы цепей
+        // Удаляем все голограммы цепей и подвешенной сферы
         for (ChainNode c : chains) {
             removeHologram("ep_chain_" + c.getId());
         }
@@ -356,24 +383,29 @@ public class SphereManager {
 
                 // Нарисовать сферу на новой высоте
                 Location curLoc = new Location(world, cx, currentY, cz);
-                drawSphereAt(curLoc);
+                drawSphereAt(curLoc, Material.BLUE_GLAZED_TERRACOTTA);
 
-                // Эффекты падения
-                world.playSound(curLoc, Sound.ENTITY_PHANTOM_SWOOP, 1.5f, 0.7f);
-                world.spawnParticle(Particle.CLOUD, curLoc.clone().add(0, -1.5, 0), 20, 1.5, 0.3, 1.5, 0.05);
+                // Эффекты свиста ветра, падающих облаков и искр
+                world.playSound(curLoc, Sound.ENTITY_PHANTOM_SWOOP, 1.2f, 0.6f);
+                world.playSound(curLoc, Sound.BLOCK_BEACON_AMBIENT, 0.8f, 1.8f);
+                world.spawnParticle(Particle.CLOUD, curLoc.clone().add(0, -1.0, 0), 25, 1.2, 0.3, 1.2, 0.05);
+                world.spawnParticle(Particle.CRIT, curLoc.clone().add(0, 0, 0), 10, 0.8, 0.8, 0.8, 0.1);
 
                 if (currentY <= endY) {
                     cancel();
-                    // Приземление!
+                    // Приземление ровно на алтарь!
                     state = SphereState.FALLEN_MINING;
                     currentSphereHp = maxSphereHp;
+                    explosionCount = 0;
+                    currentExplosionChance = baseExplosionChance;
 
                     world.playSound(sphereFallenCenter, Sound.ENTITY_GENERIC_EXPLODE, 2.0f, 0.6f);
                     world.playSound(sphereFallenCenter, Sound.ENTITY_IRON_GOLEM_DAMAGE, 2.0f, 0.5f);
-                    world.spawnParticle(Particle.EXPLOSION_LARGE, sphereFallenCenter.clone().add(0, 1, 0), 5, 1.0, 0.5, 1.0);
-                    world.spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, sphereFallenCenter.clone().add(0, 0.5, 0), 40, 2.0, 0.3, 2.0, 0.05);
+                    world.playSound(sphereFallenCenter, Sound.BLOCK_ANVIL_LAND, 2.0f, 0.5f);
+                    world.spawnParticle(Particle.EXPLOSION_LARGE, sphereFallenCenter.clone().add(0, 1, 0), 6, 1.0, 0.5, 1.0);
+                    world.spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, sphereFallenCenter.clone().add(0, 0.5, 0), 50, 2.0, 0.3, 2.0, 0.05);
 
-                    Bukkit.broadcastMessage(ColorUtil.colorize(prefix + "&#F8BEFBСердце Рая упало на алтарь! &aДобывайте его кирками для получения ценного лута!"));
+                    Bukkit.broadcastMessage(ColorUtil.colorize(prefix + "&#F8BEFBСердце Рая упало на алтарь! &aДобывайте его кирками! &8(&cШанс взрыва: 6 фаз&8)"));
                     updateSphereHologram();
                 }
             }
@@ -381,9 +413,9 @@ public class SphereManager {
     }
 
     /**
-     * Обработка удара/добычи упавшей сферы игроком
+     * Обработка вскапывания/добычи упавшей сферы ТОЛЬКО при полном ломании блока (BlockBreakEvent)
      */
-    public boolean handleFallenSphereHit(Player player, Location blockLoc) {
+    public boolean handleFallenSphereBreak(Player player, Location blockLoc) {
         if (state != SphereState.FALLEN_MINING) return false;
 
         String prefix = plugin.getConfigManager().getAdminPrefix();
@@ -394,8 +426,20 @@ public class SphereManager {
             return true;
         }
 
-        currentSphereHp = Math.max(0, currentSphereHp - 1);
         World world = blockLoc.getWorld();
+        Location center = sphereFallenCenter.clone().add(0.5, 1.0, 0.5);
+
+        // Проверка шанса взрыва
+        double roll = ThreadLocalRandom.current().nextDouble(0.0, 100.0);
+        if (roll < currentExplosionChance) {
+            // Срабатывает взрыв сферы
+            triggerSphereExplosion(player);
+            return true;
+        }
+
+        // Успешная добыча (без взрыва)
+        currentSphereHp = Math.max(0, currentSphereHp - 1);
+        currentExplosionChance = Math.min(50.0, currentExplosionChance + explosionChanceStep);
 
         // Эффекты удара
         world.playSound(blockLoc, Sound.BLOCK_ANVIL_USE, 0.8f, 1.5f);
@@ -411,11 +455,11 @@ public class SphereManager {
         List<LootItem> lootTable = plugin.getConfigManager().getLootItems();
         boolean dropped = false;
         for (LootItem item : lootTable) {
-            double roll = ThreadLocalRandom.current().nextDouble(0.0, 100.0);
-            if (roll <= (item.getChance() * 1.2)) {
+            double lootRoll = ThreadLocalRandom.current().nextDouble(0.0, 100.0);
+            if (lootRoll <= (item.getChance() * 1.3)) {
                 ItemStack is = item.createItemStack();
                 if (is != null && is.getType() != Material.AIR) {
-                    Location dropLoc = sphereFallenCenter.clone().add(0.5, 2.5, 0.5);
+                    Location dropLoc = sphereFallenCenter.clone().add(0.5, 2.2, 0.5);
                     org.bukkit.entity.Item droppedItem = world.dropItem(dropLoc, is);
                     droppedItem.setVelocity(new Vector(
                             ThreadLocalRandom.current().nextDouble(-0.15, 0.15),
@@ -434,15 +478,50 @@ public class SphereManager {
         updateSphereHologram();
 
         if (currentSphereHp <= 0) {
-            // Сфера полностью добыта -> Плавный подъём и восстановление!
             startAscensionSequence();
         }
 
         return true;
     }
 
+    private void triggerSphereExplosion(Player triggerPlayer) {
+        explosionCount++;
+        currentExplosionChance = baseExplosionChance;
+        World world = sphereFallenCenter.getWorld();
+        Location center = sphereFallenCenter.clone().add(0.5, 1.5, 0.5);
+
+        world.spawnParticle(Particle.EXPLOSION_HUGE, center, 3);
+        world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 2.5f, 0.9f);
+        world.playSound(center, Sound.ITEM_TRIDENT_THUNDER, 2.0f, 1.2f);
+        try {
+            world.strikeLightningEffect(center);
+        } catch (Throwable ignored) {}
+
+        // Урон игрокам поблизости (отталкивание и умеренный урон)
+        for (Player p : world.getPlayers()) {
+            if (p.getLocation().distanceSquared(center) <= 36.0) {
+                p.damage(8.0);
+                Vector dir = p.getLocation().toVector().subtract(center.toVector()).normalize().setY(0.4).multiply(0.8);
+                p.setVelocity(dir);
+            }
+        }
+
+        // Превращение порции синей керамики в серую
+        renderFallenSphereExplosionState();
+
+        String prefix = plugin.getConfigManager().getAdminPrefix();
+        Bukkit.broadcastMessage(ColorUtil.colorize(prefix + "&#F8BEFBСердце Рая &cдетонировало! &8(&c" + explosionCount + "&7/&c" + maxExplosions + "&8)"));
+
+        updateSphereHologram();
+
+        // После 6-го взрыва сфера полностью истощена и уходит на перезарядку
+        if (explosionCount >= maxExplosions) {
+            startAscensionSequence();
+        }
+    }
+
     /**
-     * Анимация плавного подъёма сферы обратно наверх и сборка цепей
+     * Анимация плавного подъёма серой керамической сферы обратно наверх
      */
     public void startAscensionSequence() {
         if (state == SphereState.ASCENDING || state == SphereState.RESTORING_CHAINS) return;
@@ -451,7 +530,7 @@ public class SphereManager {
         removeHologram("ep_sphere_main");
 
         String prefix = plugin.getConfigManager().getAdminPrefix();
-        Bukkit.broadcastMessage(ColorUtil.colorize(prefix + "&#F8BEFBСердце Рая полностью истощено и начинает вознесение обратно к куполу!"));
+        Bukkit.broadcastMessage(ColorUtil.colorize(prefix + "&#F8BEFBСердце Рая истощено и возносится обратно под купол на 3 часа перезарядки..."));
 
         final World world = sphereFallenCenter.getWorld();
         final int startY = sphereFallenCenter.getBlockY();
@@ -473,11 +552,11 @@ public class SphereManager {
 
                 currentY++;
 
-                // Нарисовать сферу на новой высоте
+                // Нарисовать сферу (из серой керамики)
                 Location curLoc = new Location(world, cx, currentY, cz);
-                drawSphereAt(curLoc);
+                drawSphereAt(curLoc, Material.GRAY_GLAZED_TERRACOTTA);
 
-                // Эффекты левитации и луча
+                // Эффекты левитации и портала
                 world.playSound(curLoc, Sound.BLOCK_BEACON_AMBIENT, 1.5f, 1.5f);
                 world.playSound(curLoc, Sound.ENTITY_SHULKER_BULLET_HIT, 1.0f, 1.2f);
                 world.spawnParticle(Particle.PORTAL, curLoc.clone().add(0, 0, 0), 30, 1.2, 1.2, 1.2, 0.1);
@@ -485,7 +564,7 @@ public class SphereManager {
 
                 if (currentY >= targetY) {
                     cancel();
-                    // Сфера достигла верха -> Восстановление цепей!
+                    // Сфера достигла верха -> Восстановление цепей и уход в 3-часовой кулдаун!
                     startChainRestorationSequence();
                 }
             }
@@ -493,14 +572,11 @@ public class SphereManager {
     }
 
     /**
-     * Плавная сборка и соединение всех 6 цепей звено за звеном
+     * Плавное восстановление 6 цепей
      */
     public void startChainRestorationSequence() {
         state = SphereState.RESTORING_CHAINS;
         final World world = sphereHighCenter.getWorld();
-        String prefix = plugin.getConfigManager().getAdminPrefix();
-        Bukkit.broadcastMessage(ColorUtil.colorize(prefix + "&#F8BEFBДревние цепи Рая соединяются со сферой..."));
-
         world.playSound(sphereHighCenter, Sound.BLOCK_BEACON_ACTIVATE, 2.0f, 1.0f);
 
         if (animationTask != null) animationTask.cancel();
@@ -513,7 +589,7 @@ public class SphereManager {
             public void run() {
                 if (chainIndex >= chains.size()) {
                     cancel();
-                    finishRestoration();
+                    enterCooldownPhase();
                     return;
                 }
 
@@ -534,7 +610,6 @@ public class SphereManager {
                     blockIndex++;
                 } else {
                     chain.reset();
-                    updateChainHologram(chain);
                     chainIndex++;
                     blockIndex = 0;
                 }
@@ -542,29 +617,49 @@ public class SphereManager {
         }.runTaskTimer(plugin, 2L, 2L);
     }
 
+    private void enterCooldownPhase() {
+        state = SphereState.COOLDOWN;
+        cooldownRemaining = cooldownSeconds; // 10800 секунд = 3 часа
+        drawSphereAt(sphereHighCenter, Material.GRAY_GLAZED_TERRACOTTA);
+
+        // Скрываем голограммы возле цепей на время перезарядки
+        for (ChainNode c : chains) {
+            removeHologram("ep_chain_" + c.getId());
+        }
+
+        updateCooldownSphereHologram();
+    }
+
     private void finishRestoration() {
         state = SphereState.INTACT;
         currentSphereHp = maxSphereHp;
+        explosionCount = 0;
+        currentExplosionChance = baseExplosionChance;
+
         for (ChainNode c : chains) {
             c.reset();
             restoreChainBlocks(c);
         }
-        drawSphereAt(sphereHighCenter);
+        // Возвращаем синюю керамику
+        drawSphereAt(sphereHighCenter, Material.BLUE_GLAZED_TERRACOTTA);
         updateAllHolograms();
 
         String prefix = plugin.getConfigManager().getAdminPrefix();
-        Bukkit.broadcastMessage(ColorUtil.colorize(prefix + "&#F8BEFBСердце Рая и все 6 цепей полностью восстановлены!"));
+        Bukkit.broadcastMessage(ColorUtil.colorize(prefix + "&#F8BEFBСердце Рая снова активно! &fЦепи заряжены, купол храма наполнен космической энергией!"));
         if (sphereHighCenter.getWorld() != null) {
-            sphereHighCenter.getWorld().playSound(sphereHighCenter, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.5f, 1.0f);
+            sphereHighCenter.getWorld().playSound(sphereHighCenter, Sound.UI_TOAST_CHALLENGE_COMPLETE, 2.0f, 1.0f);
+            sphereHighCenter.getWorld().playSound(sphereHighCenter, Sound.BLOCK_BEACON_ACTIVATE, 2.0f, 1.2f);
         }
     }
 
     public void tick() {
-        // Управление гравитацией (высокой прыгучестью) в купольной комнате сферы
-        handleRoomGravity();
+        handleCosmicGravity();
 
         if (state == SphereState.COOLDOWN) {
             cooldownRemaining--;
+            if (cooldownRemaining % 60 == 0 || cooldownRemaining <= 10) {
+                updateCooldownSphereHologram();
+            }
             if (cooldownRemaining <= 0) {
                 finishRestoration();
             }
@@ -572,19 +667,19 @@ public class SphereManager {
     }
 
     /**
-     * Пока сфера висит на цепях (INTACT), игрокам в купольной комнате даётся высокая прыгучесть.
-     * Как только все цепи срублены и сфера падает — прыгучесть/гравитация пропадает!
+     * Космическая гравитация (Jump Boost X + Slow Falling) внутри комнаты радиусом 16 блоков.
+     * При выходе за пределы 16 блоков эффекты моментально снимаются!
      */
-    private void handleRoomGravity() {
+    private void handleCosmicGravity() {
         Location center = plugin.getConfigManager().getCenterLocation();
         if (center == null || center.getWorld() == null) return;
         World world = center.getWorld();
 
         boolean jumpBoostEnabled = plugin.getConfig().getBoolean("sphere.jump-boost.enabled", true);
-        double roomRadius = plugin.getConfig().getDouble("sphere.jump-boost.room-radius", 22.0);
+        double roomRadius = plugin.getConfig().getDouble("sphere.jump-boost.room-radius", 16.0); // 16 блоков
         double roomRadiusSq = roomRadius * roomRadius;
-        int jumpLevel = plugin.getConfig().getInt("sphere.jump-boost.level", 5);
-        int amplifier = Math.max(0, jumpLevel - 1);
+        int jumpLevel = plugin.getConfig().getInt("sphere.jump-boost.level", 10);
+        int jumpAmp = Math.max(0, jumpLevel - 1);
 
         for (Player p : world.getPlayers()) {
             Location pl = p.getLocation();
@@ -592,15 +687,20 @@ public class SphereManager {
             double dz = pl.getZ() - center.getZ();
             double dy = pl.getY() - center.getY();
 
-            boolean insideRoom = (dx * dx + dz * dz <= roomRadiusSq) && (dy >= -2 && dy <= 38);
+            boolean insideRoom = (dx * dx + dz * dz <= roomRadiusSq) && (dy >= -1 && dy <= 36);
 
             if (insideRoom && state == SphereState.INTACT && jumpBoostEnabled) {
                 if (p.getGameMode() != GameMode.CREATIVE && p.getGameMode() != GameMode.SPECTATOR) {
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.JUMP, 60, amplifier, true, false, true), true);
+                    p.addPotionEffect(new PotionEffect(PotionEffectType.JUMP, 60, jumpAmp, true, false, true), true);
+                    p.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING, 60, 0, true, false, true), true);
                 }
             } else {
+                // Моментальное снятие эффектов космической гравитации при выходе
                 if (p.hasPotionEffect(PotionEffectType.JUMP) && !p.hasPermission("elytrixparadise.jump.keep")) {
                     p.removePotionEffect(PotionEffectType.JUMP);
+                }
+                if (p.hasPotionEffect(PotionEffectType.SLOW_FALLING) && !p.hasPermission("elytrixparadise.jump.keep")) {
+                    p.removePotionEffect(PotionEffectType.SLOW_FALLING);
                 }
             }
         }
@@ -614,6 +714,9 @@ public class SphereManager {
             if (p.hasPotionEffect(PotionEffectType.JUMP) && !p.hasPermission("elytrixparadise.jump.keep")) {
                 p.removePotionEffect(PotionEffectType.JUMP);
             }
+            if (p.hasPotionEffect(PotionEffectType.SLOW_FALLING) && !p.hasPermission("elytrixparadise.jump.keep")) {
+                p.removePotionEffect(PotionEffectType.SLOW_FALLING);
+            }
         }
     }
 
@@ -625,11 +728,13 @@ public class SphereManager {
             updateHangingSphereHologram();
         } else if (state == SphereState.FALLEN_MINING) {
             updateSphereHologram();
+        } else if (state == SphereState.COOLDOWN) {
+            updateCooldownSphereHologram();
         }
     }
 
     private void updateChainHologram(ChainNode chain) {
-        if (chain.isBroken()) {
+        if (chain.isBroken() || state != SphereState.INTACT) {
             removeHologram("ep_chain_" + chain.getId());
             return;
         }
@@ -648,9 +753,10 @@ public class SphereManager {
     private void updateHangingSphereHologram() {
         if (sphereHighCenter == null) return;
         Location holoLoc = sphereHighCenter.clone().add(0.5, 3.5, 0.5);
+        int aliveChains = chains.size() - getBrokenChainsCount();
         List<String> lines = new ArrayList<>();
         lines.add(ColorUtil.colorize("&f☁ &#F8BEFBСердце Рая &f☁"));
-        lines.add(ColorUtil.colorize("&e● &fЦепей цело: &#F8BEFB" + (chains.size() - getBrokenChainsCount()) + "&7/&#F8BEFB" + chains.size()));
+        lines.add(ColorUtil.colorize("&e● &fЦепей цело: &#F8BEFB" + aliveChains + "&7/&#F8BEFB" + chains.size()));
         lines.add(ColorUtil.colorize("&7● &fРазрушьте все 6 цепей, чтобы сфера упала!"));
 
         createOrUpdateHolo("ep_sphere_hanging", holoLoc, lines);
@@ -659,12 +765,24 @@ public class SphereManager {
     private void updateSphereHologram() {
         if (sphereFallenCenter == null) return;
         Location holoLoc = sphereFallenCenter.clone().add(0.5, 3.5, 0.5);
+        double risk = Math.round(currentExplosionChance * 10.0) / 10.0;
         List<String> lines = new ArrayList<>();
         lines.add(ColorUtil.colorize("&f⚡ &#F8BEFBСердце Рая (Упало) &f⚡"));
-        lines.add(ColorUtil.colorize("&a● &fДобывайте киркой! Лут без взрыва"));
-        lines.add(ColorUtil.colorize("&f● Оставшаяся прочность: &#F8BEFB" + currentSphereHp + "&7/&#F8BEFB" + maxSphereHp + " HP"));
+        lines.add(ColorUtil.colorize("&a● &fДобывайте киркой! &8| &cРиск: &#F8BEFB" + risk + "%"));
+        lines.add(ColorUtil.colorize("&f● Взрывов до истощения: &#F8BEFB" + explosionCount + "&7/&#F8BEFB" + maxExplosions));
 
         createOrUpdateHolo("ep_sphere_main", holoLoc, lines);
+    }
+
+    private void updateCooldownSphereHologram() {
+        if (sphereHighCenter == null) return;
+        Location holoLoc = sphereHighCenter.clone().add(0.5, 3.5, 0.5);
+        List<String> lines = new ArrayList<>();
+        lines.add(ColorUtil.colorize("&8☁ &#F8BEFBСердце Рая &8☁"));
+        lines.add(ColorUtil.colorize("&c● &fСтатус: &cПерезарядка"));
+        lines.add(ColorUtil.colorize("&7● &fВосстановление через: &#F8BEFB" + ColorUtil.formatTimeShort(cooldownRemaining)));
+
+        createOrUpdateHolo("ep_sphere_hanging", holoLoc, lines);
     }
 
     private void createOrUpdateHolo(String id, Location loc, List<String> lines) {
@@ -681,7 +799,6 @@ public class SphereManager {
             } catch (Throwable ignored) {}
         }
 
-        // Fallback to ArmorStands
         List<ArmorStand> stands = fallbackHolograms.get(id);
         if (stands == null || stands.isEmpty() || stands.stream().anyMatch(Entity::isDead)) {
             removeArmorStandHolo(id);

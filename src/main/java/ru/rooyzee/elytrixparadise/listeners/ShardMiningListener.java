@@ -37,54 +37,33 @@ public class ShardMiningListener implements Listener {
     }
 
     /**
-     * Обработка клика в креативе: креатив ломает блок моментально за 1 клик на клиенте.
-     * Отменяем клик для креатива и обрабатываем как добычу, не давая блоку исчезнуть.
+     * Предотвращение мгновенного разрушения блоков в креативе при ЛКМ.
+     * Урон и добыча на ЛКМ НЕ происходят — добыча строго при полном ломании!
      */
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (event.getAction() == Action.LEFT_CLICK_BLOCK && event.getClickedBlock() != null) {
             Block block = event.getClickedBlock();
             Player player = event.getPlayer();
-
-            // 1. Проверка клика по цепи
             SphereManager sm = plugin.getSphereManager();
-            if (sm != null && block.getType() == Material.CHAIN) {
-                ChainNode chain = sm.getChainAt(block.getLocation());
-                if (chain != null && !chain.isBroken()) {
+
+            if (player.getGameMode() == GameMode.CREATIVE) {
+                if (sm != null && block.getType() == Material.CHAIN && sm.getChainAt(block.getLocation()) != null) {
                     event.setCancelled(true);
-                    sm.handleChainHit(player, block.getLocation());
                     return;
                 }
-            }
-
-            // 2. Проверка клика по упавшей сфере
-            if (sm != null && sm.getState() == SphereState.FALLEN_MINING && sm.isSphereBlock(block.getLocation())) {
-                event.setCancelled(true);
-                sm.handleFallenSphereHit(player, block.getLocation());
-                return;
-            }
-
-            // 3. Проверка клика по осколку
-            if (isShardBlock(block)) {
-                if (player.getGameMode() == GameMode.CREATIVE) {
+                if (sm != null && sm.isSphereBlock(block.getLocation())) {
                     event.setCancelled(true);
-                    ParadiseShard shard = plugin.getShardManager().getShard(block.getLocation());
-                    if (shard == null) {
-                        shard = plugin.getShardManager().registerShard(block.getLocation());
-                    }
-                    if (shard != null) {
-                        plugin.getShardManager().handleShardMined(player, block.getLocation());
-                    }
+                    return;
+                }
+                if (isShardBlock(block)) {
+                    event.setCancelled(true);
                     resendShardBlock(block);
                 }
             }
         }
     }
 
-    /**
-     * Отмена ломания на LOWEST и HIGHEST чтобы гарантировать, что блок не пропадёт
-     * даже у игроков с OP / правами админа / WorldGuard bypass.
-     */
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
     public void onBlockBreakLowest(BlockBreakEvent event) {
         Block block = event.getBlock();
@@ -112,34 +91,37 @@ public class ShardMiningListener implements Listener {
         }
     }
 
+    /**
+     * ТОЛЬКО полное вскапывание/ломание (BlockBreakEvent) засчитывает добычу и наносит урон!
+     */
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onBlockBreak(BlockBreakEvent event) {
         final Block block = event.getBlock();
         final Player player = event.getPlayer();
         SphereManager sm = plugin.getSphereManager();
 
-        // 1. Обработка удара/ломания цепи
+        // 1. Полное ломание цепи Сердца Рая
         if (sm != null && block.getType() == Material.CHAIN) {
             ChainNode chain = sm.getChainAt(block.getLocation());
             if (chain != null && !chain.isBroken()) {
                 event.setCancelled(true);
                 event.setDropItems(false);
                 event.setExpToDrop(0);
-                sm.handleChainHit(player, block.getLocation());
+                sm.handleChainBreak(player, block.getLocation());
                 return;
             }
         }
 
-        // 2. Обработка удара/ломания упавшей сферы
+        // 2. Полное ломание упавшей сферы Сердца Рая
         if (sm != null && sm.getState() == SphereState.FALLEN_MINING && sm.isSphereBlock(block.getLocation())) {
             event.setCancelled(true);
             event.setDropItems(false);
             event.setExpToDrop(0);
-            sm.handleFallenSphereHit(player, block.getLocation());
+            sm.handleFallenSphereBreak(player, block.getLocation());
             return;
         }
 
-        // 3. Обработка ломания осколков
+        // 3. Полное ломание Осколка Рая
         if (isShardBlock(block)) {
             event.setCancelled(true);
             event.setDropItems(false);
@@ -165,11 +147,9 @@ public class ShardMiningListener implements Listener {
                 ? Material.GRAY_GLAZED_TERRACOTTA
                 : Material.RED_GLAZED_TERRACOTTA;
 
-        // Немедленная установка на сервере
         block.setType(targetMat, false);
         block.getState().update(true, true);
 
-        // Отправка пакетов изменения блока через несколько тиков для надежной синхронизации клиента
         for (long delay : new long[]{0L, 1L, 2L, 4L}) {
             Bukkit.getScheduler().runTaskLater(plugin, new Runnable() {
                 @Override
@@ -194,20 +174,6 @@ public class ShardMiningListener implements Listener {
         Block block = event.getBlock();
         Player player = event.getPlayer();
         SphereManager sm = plugin.getSphereManager();
-
-        if (sm != null) {
-            if (block.getType() == Material.CHAIN) {
-                ChainNode chain = sm.getChainAt(block.getLocation());
-                if (chain != null && !chain.isBroken()) {
-                    sm.handleChainHit(player, block.getLocation());
-                    return;
-                }
-            }
-            if (sm.getState() == SphereState.FALLEN_MINING && sm.isSphereBlock(block.getLocation())) {
-                sm.handleFallenSphereHit(player, block.getLocation());
-                return;
-            }
-        }
 
         if (isShardBlock(block)) {
             ParadiseShard shard = plugin.getShardManager().getShard(block.getLocation());
