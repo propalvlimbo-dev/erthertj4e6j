@@ -29,9 +29,8 @@ public class SphereManager {
 
     private Location sphereHighCenter;
     private Location sphereFallenCenter;
-    private int sphereRadius = 3;
 
-    private final List<SphereBlockInfo> sphereTemplate = new ArrayList<>();
+    private final List<SphereBlockInfo> sphereBlocks = new ArrayList<>();
     private final List<ChainNode> chains = new ArrayList<>();
 
     private int maxSphereHp = 200;
@@ -51,111 +50,124 @@ public class SphereManager {
     }
 
     public void init() {
+        clearAllHolograms();
         Location center = plugin.getConfigManager().getCenterLocation();
         if (center == null || center.getWorld() == null) return;
         World world = center.getWorld();
-
-        // Сфера подвешена на высоте center.Y + 18 (примерно Y=188..190)
-        this.sphereHighCenter = new Location(world, center.getBlockX(), center.getBlockY() + 18, center.getBlockZ());
-        // Алтарь находится внизу на center.Y + 2 (примерно Y=172..173)
-        this.sphereFallenCenter = new Location(world, center.getBlockX(), center.getBlockY() + 2, center.getBlockZ());
 
         this.maxSphereHp = plugin.getConfig().getInt("sphere.max-hp", 200);
         this.currentSphereHp = maxSphereHp;
         this.cooldownSeconds = plugin.getConfig().getInt("sphere.cooldown-seconds", 1800);
 
-        captureSphereTemplate();
-        setupChains();
+        // 1. Поиск существующей сферы из синей глазурованной керамики (BLUE_GLAZED_TERRACOTTA)
+        scanExistingSphereAndChains(center);
         updateAllHolograms();
     }
 
     /**
-     * Захватывает структуру блоков сферы вокруг sphereHighCenter
+     * Сканирует существующие в мире блоки сферы (BLUE_GLAZED_TERRACOTTA) и цепей (CHAIN)
+     * из вставленной схематики, не создавая никаких лишних или искусственных блоков!
      */
-    public void captureSphereTemplate() {
-        sphereTemplate.clear();
-        if (sphereHighCenter == null || sphereHighCenter.getWorld() == null) return;
-        World world = sphereHighCenter.getWorld();
-
-        int cx = sphereHighCenter.getBlockX();
-        int cy = sphereHighCenter.getBlockY();
-        int cz = sphereHighCenter.getBlockZ();
-        int r = sphereRadius;
-
-        for (int x = -r; x <= r; x++) {
-            for (int y = -r; y <= r; y++) {
-                for (int z = -r; z <= r; z++) {
-                    if (x * x + y * y + z * z <= (r + 0.5) * (r + 0.5)) {
-                        Block b = world.getBlockAt(cx + x, cy + y, cz + z);
-                        Material type = b.getType();
-                        if (type != Material.AIR && type != Material.CAVE_AIR && type != Material.VOID_AIR) {
-                            sphereTemplate.add(new SphereBlockInfo(x, y, z, type, b.getBlockData().clone()));
-                        }
-                    }
-                }
-            }
-        }
-
-        // Если в мире блоков не было, создаём красивую сферу по умолчанию (Тёмно-синяя сфера как на фото)
-        if (sphereTemplate.isEmpty()) {
-            for (int x = -r; x <= r; x++) {
-                for (int y = -r; y <= r; y++) {
-                    for (int z = -r; z <= r; z++) {
-                        double distSq = x * x + y * y + z * z;
-                        if (distSq <= r * r) {
-                            Material mat;
-                            if (distSq <= 1.5) {
-                                mat = Material.CRYING_OBSIDIAN;
-                            } else if (distSq <= 4.0) {
-                                mat = Material.BLUE_TERRACOTTA;
-                            } else {
-                                mat = Material.LAPIS_BLOCK;
-                            }
-                            sphereTemplate.add(new SphereBlockInfo(x, y, z, mat, mat.createBlockData()));
-                        }
-                    }
-                }
-            }
-            // Отрисовываем исходную сферу
-            drawSphereAt(sphereHighCenter);
-        }
-
-        plugin.getLogger().info("Захвачена структура Центральной Сферы: " + sphereTemplate.size() + " блоков.");
-    }
-
-    private void setupChains() {
+    public void scanExistingSphereAndChains(Location center) {
+        sphereBlocks.clear();
         chains.clear();
-        if (sphereHighCenter == null || sphereHighCenter.getWorld() == null) return;
-        World world = sphereHighCenter.getWorld();
 
-        int cx = sphereHighCenter.getBlockX();
-        int cy = sphereHighCenter.getBlockY();
-        int cz = sphereHighCenter.getBlockZ();
+        World world = center.getWorld();
+        int cx = center.getBlockX();
+        int cy = center.getBlockY();
+        int cz = center.getBlockZ();
 
-        int chainHp = plugin.getConfig().getInt("sphere.chain-hp", 50);
+        int scanRadiusXZ = 25;
+        int minY = Math.max(0, cy + 3);
+        int maxY = Math.min(255, cy + 35);
 
-        // 4 Цепи, удерживающие сферу (Север, Юг, Восток, Запад или диагонали к потолку/стенам)
-        // Верхние точки крепления на потолке
-        chains.add(new ChainNode(1, "Северная цепь", new Location(world, cx, cy + 8, cz + 7), new Location(world, cx, cy + 2, cz + 2), chainHp));
-        chains.add(new ChainNode(2, "Южная цепь", new Location(world, cx, cy + 8, cz - 7), new Location(world, cx, cy + 2, cz - 2), chainHp));
-        chains.add(new ChainNode(3, "Восточная цепь", new Location(world, cx + 7, cy + 8, cz), new Location(world, cx + 2, cy + 2, cz), chainHp));
-        chains.add(new ChainNode(4, "Западная цепь", new Location(world, cx - 7, cy + 8, cz), new Location(world, cx - 2, cy + 2, cz), chainHp));
+        List<Location> foundSphereLocs = new ArrayList<>();
+        List<Location> foundChainLocs = new ArrayList<>();
 
-        // Отрисовка блоков цепей в мире
-        drawAllChains();
-    }
-
-    public void drawAllChains() {
-        for (ChainNode chain : chains) {
-            if (!chain.isBroken()) {
-                for (Location loc : chain.getChainBlocks()) {
-                    Block b = loc.getBlock();
-                    if (b.getType() != Material.CHAIN) {
-                        b.setType(Material.CHAIN, false);
+        for (int x = cx - scanRadiusXZ; x <= cx + scanRadiusXZ; x++) {
+            for (int z = cz - scanRadiusXZ; z <= cz + scanRadiusXZ; z++) {
+                for (int y = minY; y <= maxY; y++) {
+                    Block b = world.getBlockAt(x, y, z);
+                    Material type = b.getType();
+                    if (type == Material.BLUE_GLAZED_TERRACOTTA) {
+                        foundSphereLocs.add(b.getLocation());
+                    } else if (type == Material.CHAIN) {
+                        foundChainLocs.add(b.getLocation());
                     }
                 }
             }
         }
+
+        // Если сфера найдена в схематике, вычисляем её центр
+        if (!foundSphereLocs.isEmpty()) {
+            double sumX = 0, sumY = 0, sumZ = 0;
+            for (Location loc : foundSphereLocs) {
+                sumX += loc.getBlockX();
+                sumY += loc.getBlockY();
+                sumZ += loc.getBlockZ();
+            }
+            int avgX = (int) Math.round(sumX / foundSphereLocs.size());
+            int avgY = (int) Math.round(sumY / foundSphereLocs.size());
+            int avgZ = (int) Math.round(sumZ / foundSphereLocs.size());
+
+            this.sphereHighCenter = new Location(world, avgX, avgY, avgZ);
+            this.sphereFallenCenter = new Location(world, avgX, cy + 3, avgZ);
+
+            for (Location loc : foundSphereLocs) {
+                Block b = loc.getBlock();
+                int rx = loc.getBlockX() - avgX;
+                int ry = loc.getBlockY() - avgY;
+                int rz = loc.getBlockZ() - avgZ;
+                sphereBlocks.add(new SphereBlockInfo(loc, rx, ry, rz, b.getType(), b.getBlockData().clone()));
+            }
+
+            plugin.getLogger().info("Найдена Центральная Сфера (BLUE_GLAZED_TERRACOTTA): "
+                    + sphereBlocks.size() + " блоков на высоте Y=" + avgY);
+        } else {
+            // Fallback если по какой-то причине в схеме нет синей керамики
+            this.sphereHighCenter = new Location(world, cx, cy + 18, cz);
+            this.sphereFallenCenter = new Location(world, cx, cy + 3, cz);
+        }
+
+        // 2. Группировка найденных существующих цепей схематики по 4 сторонам
+        int chainHp = plugin.getConfig().getInt("sphere.chain-hp", 50);
+        ChainNode north = new ChainNode(1, "Северная цепь", chainHp);
+        ChainNode south = new ChainNode(2, "Южная цепь", chainHp);
+        ChainNode east = new ChainNode(3, "Восточная цепь", chainHp);
+        ChainNode west = new ChainNode(4, "Западная цепь", chainHp);
+
+        int sphereCenterX = sphereHighCenter.getBlockX();
+        int sphereCenterZ = sphereHighCenter.getBlockZ();
+
+        for (Location cLoc : foundChainLocs) {
+            int dx = cLoc.getBlockX() - sphereCenterX;
+            int dz = cLoc.getBlockZ() - sphereCenterZ;
+            Block b = cLoc.getBlock();
+
+            if (Math.abs(dz) >= Math.abs(dx)) {
+                if (dz > 0) {
+                    north.addBlock(cLoc, b.getBlockData());
+                } else if (dz < 0) {
+                    south.addBlock(cLoc, b.getBlockData());
+                } else {
+                    north.addBlock(cLoc, b.getBlockData());
+                }
+            } else {
+                if (dx > 0) {
+                    east.addBlock(cLoc, b.getBlockData());
+                } else {
+                    west.addBlock(cLoc, b.getBlockData());
+                }
+            }
+        }
+
+        if (!north.getChainBlocks().isEmpty()) chains.add(north);
+        if (!south.getChainBlocks().isEmpty()) chains.add(south);
+        if (!east.getChainBlocks().isEmpty()) chains.add(east);
+        if (!west.getChainBlocks().isEmpty()) chains.add(west);
+
+        plugin.getLogger().info("Найдено и сгруппировано существующих цепей схематики: "
+                + chains.size() + " ветвей (всего " + foundChainLocs.size() + " блоков цепей).");
     }
 
     public void clearChainBlocks(ChainNode chain) {
@@ -167,6 +179,13 @@ public class SphereManager {
         }
     }
 
+    public void restoreChainBlocks(ChainNode chain) {
+        for (Map.Entry<Location, BlockData> entry : chain.getOriginalData().entrySet()) {
+            Block b = entry.getKey().getBlock();
+            b.setBlockData(entry.getValue(), false);
+        }
+    }
+
     public void drawSphereAt(Location center) {
         if (center == null || center.getWorld() == null) return;
         World world = center.getWorld();
@@ -174,7 +193,7 @@ public class SphereManager {
         int cy = center.getBlockY();
         int cz = center.getBlockZ();
 
-        for (SphereBlockInfo info : sphereTemplate) {
+        for (SphereBlockInfo info : sphereBlocks) {
             Block b = world.getBlockAt(cx + info.getRelX(), cy + info.getRelY(), cz + info.getRelZ());
             b.setBlockData(info.getBlockData(), false);
         }
@@ -187,7 +206,7 @@ public class SphereManager {
         int cy = center.getBlockY();
         int cz = center.getBlockZ();
 
-        for (SphereBlockInfo info : sphereTemplate) {
+        for (SphereBlockInfo info : sphereBlocks) {
             Block b = world.getBlockAt(cx + info.getRelX(), cy + info.getRelY(), cz + info.getRelZ());
             b.setType(Material.AIR, false);
         }
@@ -202,7 +221,7 @@ public class SphereManager {
         int dy = loc.getBlockY() - activeCenter.getBlockY();
         int dz = loc.getBlockZ() - activeCenter.getBlockZ();
 
-        for (SphereBlockInfo info : sphereTemplate) {
+        for (SphereBlockInfo info : sphereBlocks) {
             if (info.getRelX() == dx && info.getRelY() == dy && info.getRelZ() == dz) {
                 return true;
             }
@@ -293,6 +312,7 @@ public class SphereManager {
         for (ChainNode c : chains) {
             removeHologram("ep_chain_" + c.getId());
         }
+        removeHologram("ep_sphere_hanging");
 
         final World world = sphereHighCenter.getWorld();
         final int startY = sphereHighCenter.getBlockY();
@@ -320,7 +340,7 @@ public class SphereManager {
 
                 // Эффекты падения
                 world.playSound(curLoc, Sound.ENTITY_PHANTOM_SWOOP, 1.5f, 0.7f);
-                world.spawnParticle(Particle.CLOUD, curLoc.clone().add(0, -sphereRadius, 0), 20, 1.5, 0.3, 1.5, 0.05);
+                world.spawnParticle(Particle.CLOUD, curLoc.clone().add(0, -1.5, 0), 20, 1.5, 0.3, 1.5, 0.05);
 
                 if (currentY <= endY) {
                     cancel();
@@ -367,12 +387,12 @@ public class SphereManager {
         ExperienceOrb orb = (ExperienceOrb) world.spawn(blockLoc.clone().add(0.5, 1.0, 0.5), ExperienceOrb.class);
         orb.setExperience(ThreadLocalRandom.current().nextInt(3, 8));
 
-        // Выпадение лута из таблицы shards.loot
+        // Выпадение лута
         List<LootItem> lootTable = plugin.getConfigManager().getLootItems();
         boolean dropped = false;
         for (LootItem item : lootTable) {
             double roll = ThreadLocalRandom.current().nextDouble(0.0, 100.0);
-            if (roll <= (item.getChance() * 1.2)) { // Слегка повышенный шанс из сферы
+            if (roll <= (item.getChance() * 1.2)) {
                 ItemStack is = item.createItemStack();
                 if (is != null && is.getType() != Material.AIR) {
                     Location dropLoc = sphereFallenCenter.clone().add(0.5, 2.5, 0.5);
@@ -463,7 +483,6 @@ public class SphereManager {
 
         world.playSound(sphereHighCenter, Sound.BLOCK_BEACON_ACTIVATE, 2.0f, 1.0f);
 
-        // Поэтапно восстанавливаем каждую цепь
         if (animationTask != null) animationTask.cancel();
 
         animationTask = new BukkitRunnable() {
@@ -474,7 +493,6 @@ public class SphereManager {
             public void run() {
                 if (chainIndex >= chains.size()) {
                     cancel();
-                    // Все цепи собраны! Переход в кулдаун или готовность
                     finishRestoration();
                     return;
                 }
@@ -485,7 +503,12 @@ public class SphereManager {
                 if (blockIndex < bList.size()) {
                     Location bLoc = bList.get(blockIndex);
                     Block b = bLoc.getBlock();
-                    b.setType(Material.CHAIN, false);
+                    BlockData origData = chain.getOriginalData().get(bLoc);
+                    if (origData != null) {
+                        b.setBlockData(origData, false);
+                    } else {
+                        b.setType(Material.CHAIN, false);
+                    }
                     world.playSound(bLoc, Sound.ITEM_ARMOR_EQUIP_CHAIN, 1.2f, 1.2f);
                     world.spawnParticle(Particle.CRIT_MAGIC, bLoc.clone().add(0.5, 0.5, 0.5), 6, 0.2, 0.2, 0.2, 0.05);
                     blockIndex++;
@@ -504,8 +527,9 @@ public class SphereManager {
         currentSphereHp = maxSphereHp;
         for (ChainNode c : chains) {
             c.reset();
+            restoreChainBlocks(c);
         }
-        drawAllChains();
+        drawSphereAt(sphereHighCenter);
         updateAllHolograms();
 
         String prefix = plugin.getConfigManager().getAdminPrefix();
@@ -542,6 +566,8 @@ public class SphereManager {
         }
 
         Location holoLoc = chain.getHologramLocation();
+        if (holoLoc == null) return;
+
         List<String> lines = new ArrayList<>();
         lines.add(ColorUtil.colorize("&f⛓ &#F8BEFB" + chain.getName() + " &f⛓"));
         lines.add(ColorUtil.colorize("&c● &fПрочность: &#F8BEFB" + chain.getCurrentHp() + "&7/&#F8BEFB" + chain.getMaxHp() + " HP"));
@@ -551,17 +577,19 @@ public class SphereManager {
     }
 
     private void updateHangingSphereHologram() {
-        Location holoLoc = sphereHighCenter.clone().add(0.5, sphereRadius + 1.2, 0.5);
+        if (sphereHighCenter == null) return;
+        Location holoLoc = sphereHighCenter.clone().add(0.5, 3.5, 0.5);
         List<String> lines = new ArrayList<>();
         lines.add(ColorUtil.colorize("&f☁ &#F8BEFBСердце Рая &f☁"));
-        lines.add(ColorUtil.colorize("&e● &fУдерживается цепями: &#F8BEFB" + (chains.size() - getBrokenChainsCount()) + "&7/&#F8BEFB" + chains.size()));
+        lines.add(ColorUtil.colorize("&e● &fЦепей цело: &#F8BEFB" + (chains.size() - getBrokenChainsCount()) + "&7/&#F8BEFB" + chains.size()));
         lines.add(ColorUtil.colorize("&7● &fРазрушьте все цепи, чтобы сфера упала!"));
 
         createOrUpdateHolo("ep_sphere_hanging", holoLoc, lines);
     }
 
     private void updateSphereHologram() {
-        Location holoLoc = sphereFallenCenter.clone().add(0.5, sphereRadius + 1.5, 0.5);
+        if (sphereFallenCenter == null) return;
+        Location holoLoc = sphereFallenCenter.clone().add(0.5, 3.5, 0.5);
         List<String> lines = new ArrayList<>();
         lines.add(ColorUtil.colorize("&f⚡ &#F8BEFBСердце Рая (Упало) &f⚡"));
         lines.add(ColorUtil.colorize("&a● &fДобывайте киркой! Лут без взрыва"));
@@ -639,16 +667,20 @@ public class SphereManager {
         }
     }
 
-    public void clearAll() {
-        if (animationTask != null) {
-            animationTask.cancel();
-            animationTask = null;
-        }
+    public void clearAllHolograms() {
         for (ChainNode c : chains) {
             removeHologram("ep_chain_" + c.getId());
         }
         removeHologram("ep_sphere_hanging");
         removeHologram("ep_sphere_main");
+    }
+
+    public void clearAll() {
+        if (animationTask != null) {
+            animationTask.cancel();
+            animationTask = null;
+        }
+        clearAllHolograms();
     }
 
     public SphereState getState() {
