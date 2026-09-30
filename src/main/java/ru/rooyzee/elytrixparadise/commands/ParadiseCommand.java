@@ -34,7 +34,7 @@ public class ParadiseCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 0 || args[0].equalsIgnoreCase("help")) {
             for (String line : cm.getMessageList("help")) {
-                sender.sendMessage(line);
+                sender.sendMessage(ColorUtil.colorize(line));
             }
             if (sender.hasPermission("elytrixparadise.admin")) {
                 sender.sendMessage(ColorUtil.colorize("&7● &f/ep loot [shards/sphere] &8- &7Открыть редактор лута (4 страницы)"));
@@ -52,7 +52,7 @@ public class ParadiseCommand implements CommandExecutor, TabCompleter {
             }
             Player player = (Player) sender;
             plugin.setActionBarDisabled(player.getUniqueId(), true);
-            player.sendMessage(ColorUtil.colorize(playerPrefix + "&cОтображение Actionbar отключено! &7(Включить: &#F8BEFB/paradise on&7)"));
+            player.sendMessage(ColorUtil.colorize(adminPrefix + "&cОтображение Actionbar отключено! &7(Включить: &#F8BEFB/paradise on&7)"));
             return true;
         }
 
@@ -64,7 +64,7 @@ public class ParadiseCommand implements CommandExecutor, TabCompleter {
             }
             Player player = (Player) sender;
             plugin.setActionBarDisabled(player.getUniqueId(), false);
-            player.sendMessage(ColorUtil.colorize(playerPrefix + "&aОтображение Actionbar включено!"));
+            player.sendMessage(ColorUtil.colorize(adminPrefix + "&aОтображение Actionbar включено!"));
             return true;
         }
 
@@ -76,13 +76,13 @@ public class ParadiseCommand implements CommandExecutor, TabCompleter {
             }
             Player player = (Player) sender;
             if (!player.hasPermission("elytrixparadise.tp") && !player.hasPermission("elytrixparadise.use")) {
-                player.sendMessage(ColorUtil.colorize(playerPrefix + "&cУ вас нет прав на телепортацию в Райское место!"));
+                player.sendMessage(ColorUtil.colorize(adminPrefix + "&cУ вас нет прав на телепортацию в Райское место!"));
                 return true;
             }
 
             Location spawn = cm.getSpawnLocation();
             player.teleport(spawn);
-            player.sendMessage(ColorUtil.colorize(playerPrefix + "&aВы успешно телепортированы в &#F8BEFBРайское место&a!"));
+            player.sendMessage(ColorUtil.colorize(adminPrefix + "&aВы успешно телепортированы в &#F8BEFBРайское место&a!"));
             return true;
         }
 
@@ -91,14 +91,14 @@ public class ParadiseCommand implements CommandExecutor, TabCompleter {
             int active = plugin.getShardManager().getActiveShardsCount();
             int total = plugin.getShardManager().getAllShards().size();
             for (String line : cm.getMessageList("info")) {
-                sender.sendMessage(line
+                sender.sendMessage(ColorUtil.colorize(line
                         .replace("{x}", String.valueOf(cm.getCenterX()))
                         .replace("{y}", String.valueOf(cm.getCenterY()))
                         .replace("{z}", String.valueOf(cm.getCenterZ()))
                         .replace("{world}", cm.getWorldName())
                         .replace("{schem}", cm.getSchematicFile())
                         .replace("{active_shards}", String.valueOf(active))
-                        .replace("{total_shards}", String.valueOf(total)));
+                        .replace("{total_shards}", String.valueOf(total))));
             }
             return true;
         }

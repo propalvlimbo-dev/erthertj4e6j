@@ -76,15 +76,14 @@ public final class ColorUtil {
     }
 
     /**
-     * Formats seconds into H:MM:SS or M:SS format (e.g. 2:59:30 or 2:59).
+     * Formats seconds into H:MM or MM:SS format (e.g. 2:58 or 09:45, without ugly :00 on hours).
      */
     public static String formatTimeShort(int totalSeconds) {
         if (totalSeconds < 0) totalSeconds = 0;
         if (totalSeconds >= 3600) {
             int hours = totalSeconds / 3600;
             int minutes = (totalSeconds % 3600) / 60;
-            int seconds = totalSeconds % 60;
-            return String.format("%d:%02d:%02d", hours, minutes, seconds);
+            return String.format("%d:%02d", hours, minutes);
         }
         int minutes = totalSeconds / 60;
         int seconds = totalSeconds % 60;
@@ -92,7 +91,7 @@ public final class ColorUtil {
     }
 
     /**
-     * Formats seconds into Russian pretty format (e.g. 2ч 59м or 4м 30с).
+     * Formats seconds into Russian pretty format (e.g. 2ч 58м or 4м 30с).
      */
     public static String formatTimePretty(int totalSeconds) {
         if (totalSeconds < 0) totalSeconds = 0;

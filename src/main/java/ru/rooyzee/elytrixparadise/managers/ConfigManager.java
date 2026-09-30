@@ -63,7 +63,7 @@ public class ConfigManager {
     private final List<LootItem> lootItems = new ArrayList<>();
 
     private String adminPrefix = "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» ";
-    private String playerPrefix = "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место &7» ";
+    private String playerPrefix = "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» ";
 
     private FileConfiguration messagesConfig;
     private File messagesFile;
@@ -178,7 +178,7 @@ public class ConfigManager {
         }
 
         adminPrefix = messagesConfig.getString("prefix.admin", "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» ");
-        playerPrefix = messagesConfig.getString("prefix.player", "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место &7» ");
+        playerPrefix = messagesConfig.getString("prefix.player", "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» ");
     }
 
     public String getMessage(String path) {

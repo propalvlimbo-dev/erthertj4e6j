@@ -164,59 +164,14 @@ public class LootStorageManager {
             }
         }
 
-        // Если ничего не выпало, гарантируем минимум 1 обычный предмет
-        if (result.isEmpty()) {
-            List<ItemStack> commonItems = getItems(LootType.SPHERE, 1);
-            if (!commonItems.isEmpty()) {
-                ItemStack template = commonItems.get(ThreadLocalRandom.current().nextInt(commonItems.size()));
-                if (template != null && template.getType() != Material.AIR) {
-                    result.add(template.clone());
-                }
-            }
-        }
-
+        // Если страницы пусты или ничего не выпало — возвращаем пустой список (администратор сам заполнит лут через /ep loot)
         return result;
     }
 
     private void generateDefaultLoot(LootType type, Map<Integer, List<ItemStack>> pages) {
-        // Page 1: Обычный лут
-        List<ItemStack> p1 = new ArrayList<>();
-        p1.add(createNamedItem(Material.GOLD_INGOT, 4, "&#F8BEFBЗолотой слиток", "&7● Обычный материал"));
-        p1.add(createNamedItem(Material.IRON_INGOT, 5, "&#F8BEFBЖелезный слиток", "&7● Обычный материал"));
-        p1.add(createNamedItem(Material.EXPERIENCE_BOTTLE, 3, "&#F8BEFBБутылёк опыта", "&7● Дарует священный опыт"));
-        pages.put(1, p1);
-
-        // Page 2: Редкий лут
-        List<ItemStack> p2 = new ArrayList<>();
-        p2.add(createNamedItem(Material.EMERALD, 2, "&#F8BEFBНебесный Изумруд", "&7● Редкий кристалл Рая"));
-        p2.add(createNamedItem(Material.DIAMOND, 2, "&#F8BEFBРайский Алмаз", "&7● Сияющий драгоценный камень"));
-        pages.put(2, p2);
-
-        // Page 3: Эпический лут
-        List<ItemStack> p3 = new ArrayList<>();
-        p3.add(createNamedItem(Material.GOLDEN_APPLE, 1, "&#F8BEFBРайское Яблоко", "&7● Дарует небесную силу"));
-        p3.add(createNamedItem(Material.NETHERITE_SCRAP, 1, "&#F8BEFBДревний Осколок", "&7● Редчайший сплав"));
-        pages.put(3, p3);
-
-        // Page 4: Легендарный лут
-        List<ItemStack> p4 = new ArrayList<>();
-        p4.add(createNamedItem(Material.ENCHANTED_GOLDEN_APPLE, 1, "&#F8BEFBСердце Бессмертия", "&7● Легендарный артефакт Рая"));
-        p4.add(createNamedItem(Material.NETHERITE_INGOT, 1, "&#F8BEFBНезеритовый слиток Рая", "&7● Легендарный чистый незерит"));
-        pages.put(4, p4);
-    }
-
-    private ItemStack createNamedItem(Material mat, int amount, String name, String... loreLines) {
-        ItemStack is = new ItemStack(mat, amount);
-        ItemMeta meta = is.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(ColorUtil.colorize(name));
-            List<String> lore = new ArrayList<>();
-            for (String l : loreLines) {
-                lore.add(ColorUtil.colorize(l));
-            }
-            meta.setLore(lore);
-            is.setItemMeta(meta);
+        // Оставляем пустыми все 4 страницы — администратор сам заполнит лут через GUI меню /ep loot
+        for (int p = 1; p <= 4; p++) {
+            pages.put(p, new ArrayList<ItemStack>());
         }
-        return is;
     }
 }
