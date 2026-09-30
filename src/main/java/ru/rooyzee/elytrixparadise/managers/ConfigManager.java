@@ -41,13 +41,13 @@ public class ConfigManager {
     private boolean ignoreAir = true;
     private int schematicOffsetY = 0;
 
-    private double actionbarRadiusXZ = 120.0;
-    private double actionbarMinY = 140.0;
-    private double actionbarMaxY = 215.0;
+    private double actionbarRadiusXZ = 150.0;
+    private double actionbarMinY = 50.0;
+    private double actionbarMaxY = 300.0;
 
-    private int scanRadiusXZ = 120;
-    private int scanMinY = 140;
-    private int scanMaxY = 215;
+    private int scanRadiusXZ = 150;
+    private int scanMinY = 50;
+    private int scanMaxY = 300;
 
     private int shardCooldownSeconds = 600; // 10 minutes
     private double shardBaseExplosionChance = 2.0;
@@ -93,13 +93,13 @@ public class ConfigManager {
         ignoreAir = config.getBoolean("schematic.ignore-air", true);
         schematicOffsetY = config.getInt("schematic.offset-y", 0);
 
-        actionbarRadiusXZ = config.getDouble("actionbar.radius-xz", 120.0);
-        actionbarMinY = config.getDouble("actionbar.min-y", 140.0);
-        actionbarMaxY = config.getDouble("actionbar.max-y", 215.0);
+        actionbarRadiusXZ = config.getDouble("actionbar.radius-xz", 150.0);
+        actionbarMinY = config.getDouble("actionbar.min-y", 50.0);
+        actionbarMaxY = config.getDouble("actionbar.max-y", 300.0);
 
-        scanRadiusXZ = config.getInt("shards.scan-radius-xz", 120);
-        scanMinY = config.getInt("shards.scan-min-y", 140);
-        scanMaxY = config.getInt("shards.scan-max-y", 215);
+        scanRadiusXZ = config.getInt("shards.scan-radius-xz", 150);
+        scanMinY = config.getInt("shards.scan-min-y", 50);
+        scanMaxY = config.getInt("shards.scan-max-y", 300);
 
         shardCooldownSeconds = config.getInt("shards.cooldown-seconds", 600);
         shardBaseExplosionChance = config.getDouble("shards.base-explosion-chance", 2.0);

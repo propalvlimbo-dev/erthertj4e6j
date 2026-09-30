@@ -18,14 +18,14 @@ schematic:
   offset-y: 0
 
 actionbar:
-  radius-xz: 120.0
-  min-y: 140.0
-  max-y: 215.0
+  radius-xz: 150.0
+  min-y: 50.0
+  max-y: 300.0
 
 shards:
-  scan-radius-xz: 120
-  scan-min-y: 140
-  scan-max-y: 215
+  scan-radius-xz: 150
+  scan-min-y: 50
+  scan-max-y: 300
   cooldown-seconds: 600
   base-explosion-chance: 2.0
   chance-increase-per-hit: 1.5

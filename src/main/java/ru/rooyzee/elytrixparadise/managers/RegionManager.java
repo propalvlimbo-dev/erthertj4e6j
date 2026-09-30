@@ -32,8 +32,12 @@ public class RegionManager {
             int cx = center.getBlockX();
             int cz = center.getBlockZ();
 
-            BlockVector3 min = BlockVector3.at(cx - radiusXZ, Math.max(0, minY), cz - radiusXZ);
-            BlockVector3 max = BlockVector3.at(cx + radiusXZ, Math.min(255, maxY), cz + radiusXZ);
+            // Расширенный регион: 150 блоков в стороны, от самого низа (-64) до самого верха (320)
+            int effectiveMinY = Math.min(-64, world.getMinHeight());
+            int effectiveMaxY = Math.max(320, world.getMaxHeight());
+
+            BlockVector3 min = BlockVector3.at(cx - radiusXZ, effectiveMinY, cz - radiusXZ);
+            BlockVector3 max = BlockVector3.at(cx + radiusXZ, effectiveMaxY, cz + radiusXZ);
 
             ProtectedCuboidRegion region = new ProtectedCuboidRegion(REGION_ID, min, max);
             region.setPriority(200);
@@ -69,7 +73,7 @@ public class RegionManager {
                 rm.save();
             } catch (Exception ignored) {}
 
-            plugin.getLogger().info("Регион защиты '" + REGION_ID + "' успешно создан в WorldGuard.");
+            plugin.getLogger().info("Регион защиты '" + REGION_ID + "' успешно создан в WorldGuard (150 блоков, полный диапазон высот).");
             return true;
         } catch (Throwable t) {
             plugin.getLogger().warning("Не удалось создать регион WorldGuard: " + t.getMessage());
@@ -112,13 +116,9 @@ public class RegionManager {
         Location center = plugin.getConfigManager().getCenterLocation();
         if (center == null || !loc.getWorld().equals(center.getWorld())) return false;
         double radiusXZ = plugin.getConfigManager().getActionbarRadiusXZ();
-        double minY = plugin.getConfigManager().getActionbarMinY();
-        double maxY = plugin.getConfigManager().getActionbarMaxY();
-
         double dx = loc.getX() - center.getX();
         double dz = loc.getZ() - center.getZ();
-        double dy = loc.getY();
 
-        return (dx * dx + dz * dz <= radiusXZ * radiusXZ) && (dy >= minY && dy <= maxY);
+        return (dx * dx + dz * dz <= radiusXZ * radiusXZ);
     }
 }
