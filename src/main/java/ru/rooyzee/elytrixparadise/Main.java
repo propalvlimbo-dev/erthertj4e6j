@@ -7,26 +7,34 @@ import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 import ru.rooyzee.elytrixparadise.commands.ParadiseCommand;
+import ru.rooyzee.elytrixparadise.listeners.ParadiseProtectionListener;
 import ru.rooyzee.elytrixparadise.listeners.ShardMiningListener;
 import ru.rooyzee.elytrixparadise.listeners.ShardProtectionListener;
 import ru.rooyzee.elytrixparadise.managers.ConfigManager;
+import ru.rooyzee.elytrixparadise.managers.RegionManager;
 import ru.rooyzee.elytrixparadise.managers.SchematicManager;
 import ru.rooyzee.elytrixparadise.shards.ShardManager;
 import ru.rooyzee.elytrixparadise.tasks.ActionBarTask;
 import ru.rooyzee.elytrixparadise.tasks.ShardTickTask;
 
 import java.io.File;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Main extends JavaPlugin {
 
     private static Main instance;
 
     private ConfigManager configManager;
+    private RegionManager regionManager;
     private ShardManager shardManager;
     private SchematicManager schematicManager;
 
     private BukkitTask shardTickTask;
     private BukkitTask actionBarTask;
+
+    private final Set<UUID> disabledActionBarPlayers = ConcurrentHashMap.newKeySet();
 
     @Override
     public void onEnable() {
@@ -43,19 +51,21 @@ public class Main extends JavaPlugin {
         configManager.load();
 
         // 3. Инициализация менеджеров
+        regionManager = new RegionManager(this);
         shardManager = new ShardManager(this);
         schematicManager = new SchematicManager(this);
 
-        // 4. Регистрация слушателей событий (добыча и защита осколков)
+        // 4. Регистрация слушателей событий (добыча, защита осколков, запрет флая/года)
         PluginManager pm = Bukkit.getPluginManager();
         pm.registerEvents(new ShardMiningListener(this), this);
         pm.registerEvents(new ShardProtectionListener(this), this);
+        pm.registerEvents(new ParadiseProtectionListener(this), this);
 
         // 5. Запуск периодических задач
         shardTickTask = new ShardTickTask(this).runTaskTimer(this, 20L, 20L);
         actionBarTask = new ActionBarTask(this).runTaskTimer(this, 20L, 20L);
 
-        // 6. Вставка схематики на координаты X=0, Y=170, Z=0 при старте
+        // 6. Вставка схематики и создание региона WorldGuard
         if (configManager.isPasteOnStartup()) {
             Location center = configManager.getCenterLocation();
             String schemName = configManager.getSchematicFile();
@@ -63,12 +73,23 @@ public class Main extends JavaPlugin {
                     + center.getBlockX() + ", Y=" + center.getBlockY() + ", Z=" + center.getBlockZ()
                     + " в мире '" + configManager.getWorldName() + "'...");
             schematicManager.pasteSchematic(schemName, center);
+            regionManager.createParadiseRegion(
+                    center,
+                    configManager.getScanRadiusXZ(),
+                    configManager.getScanMinY(),
+                    configManager.getScanMaxY()
+            );
         } else {
-            // Если вставка отключена, просто сканируем существующие осколки
             schematicManager.scanAndRegisterShards();
+            regionManager.createParadiseRegion(
+                    configManager.getCenterLocation(),
+                    configManager.getScanRadiusXZ(),
+                    configManager.getScanMinY(),
+                    configManager.getScanMaxY()
+            );
         }
 
-        // 7. Повторное сканирование через 2 секунды после полной загрузки всех плагинов (включая DecentHolograms)
+        // 7. Повторное сканирование через 2 секунды после полной загрузки всех плагинов
         Bukkit.getScheduler().runTaskLater(this, new Runnable() {
             @Override
             public void run() {
@@ -89,7 +110,7 @@ public class Main extends JavaPlugin {
         getLogger().info("=========================================");
         getLogger().info("  ElytrixParadise v" + getDescription().getVersion() + " [Райское место] включён!");
         getLogger().info("  Координаты ивента: X=0, Y=" + configManager.getCenterY() + ", Z=0");
-        getLogger().info("  Радиус сканирования: " + configManager.getScanRadiusXZ() + " блоков");
+        getLogger().info("  Радиус региона и поиска: " + configManager.getScanRadiusXZ() + " блоков");
         getLogger().info("  Папка для схематик: plugins/ElytrixParadise/schematics/");
         getLogger().info("  Файл схематики: " + configManager.getSchematicFile());
         getLogger().info("=========================================");
@@ -111,11 +132,27 @@ public class Main extends JavaPlugin {
             schematicManager.invalidateCache();
         }
 
+        if (regionManager != null && configManager != null) {
+            regionManager.removeParadiseRegion(configManager.getCenterLocation().getWorld());
+        }
+
         if (shardManager != null) {
             shardManager.clearAllShards();
         }
 
         getLogger().info("ElytrixParadise отключён.");
+    }
+
+    public boolean isActionBarDisabled(UUID uuid) {
+        return disabledActionBarPlayers.contains(uuid);
+    }
+
+    public void setActionBarDisabled(UUID uuid, boolean disabled) {
+        if (disabled) {
+            disabledActionBarPlayers.add(uuid);
+        } else {
+            disabledActionBarPlayers.remove(uuid);
+        }
     }
 
     public static Main getInstance() {
@@ -124,6 +161,10 @@ public class Main extends JavaPlugin {
 
     public ConfigManager getConfigManager() {
         return configManager;
+    }
+
+    public RegionManager getRegionManager() {
+        return regionManager;
     }
 
     public ShardManager getShardManager() {

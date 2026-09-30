@@ -95,14 +95,6 @@ public class ShardManager {
                         world.spawnParticle(Particle.FLASH, loc.clone().add(0.5, 1.0, 0.5), 2);
                         world.playSound(loc, Sound.BLOCK_BELL_RESONATE, 1.5f, 1.2f);
                         world.playSound(loc, Sound.BLOCK_BEACON_ACTIVATE, 1.5f, 1.5f);
-
-                        // Broadcast in ElytriX format to players in event area
-                        String playerPrefix = plugin.getConfigManager().getPlayerPrefix();
-                        for (Player p : world.getPlayers()) {
-                            if (p.getLocation().distanceSquared(loc) <= 50 * 50) {
-                                p.sendMessage(ColorUtil.colorize(playerPrefix + "&aОсколок Рая &fуспешно восстановился и снова &aактивен&f!"));
-                            }
-                        }
                     }
                 }
                 hologramHandler.createOrUpdateHologram(shard);
@@ -110,14 +102,17 @@ public class ShardManager {
         }
     }
 
-    public boolean handleShardHit(Player player, Location blockLoc) {
+    /**
+     * Вызывается при полном вскапывании/ломании блока осколка.
+     */
+    public boolean handleShardMined(Player player, Location blockLoc) {
         ParadiseShard shard = getShard(blockLoc);
         if (shard == null) return false;
 
-        String playerPrefix = plugin.getConfigManager().getPlayerPrefix();
+        String prefix = plugin.getConfigManager().getAdminPrefix();
 
         if (shard.getState() != ParadiseShard.ShardState.ACTIVE) {
-            player.sendMessage(ColorUtil.colorize(playerPrefix + "&cОсколок находится на перезарядке! &fОсталось: &#F8BEFB"
+            player.sendMessage(ColorUtil.colorize(prefix + "&cОсколок находится на перезарядке! &fОсталось: &#F8BEFB"
                     + ColorUtil.formatTimeShort(shard.getCooldownRemaining())));
             player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_HIT, 0.8f, 0.5f);
             return true;
@@ -126,24 +121,17 @@ public class ShardManager {
         // Check tool (must be a pickaxe)
         ItemStack handItem = player.getInventory().getItemInMainHand();
         if (handItem == null || !handItem.getType().name().endsWith("_PICKAXE")) {
-            player.sendMessage(ColorUtil.colorize(playerPrefix + "&cДля добычи Осколка Рая необходима кирка!"));
+            player.sendMessage(ColorUtil.colorize(prefix + "&cДля добычи Осколка Рая необходима кирка!"));
             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 1.0f, 0.5f);
-            return true;
-        }
-
-        // Check mining delay (rate-limit hits to make mining deliberate and long)
-        long delayMs = plugin.getConfigManager().getShardHitDelayMs();
-        if (!shard.canPlayerHit(player.getUniqueId(), delayMs)) {
             return true;
         }
 
         World world = blockLoc.getWorld();
         Location center = blockLoc.clone().add(0.5, 0.5, 0.5);
 
-        // Visual & audio feedback on hit
-        world.spawnParticle(Particle.BLOCK_CRACK, center, 15, 0.25, 0.25, 0.25, Material.RED_GLAZED_TERRACOTTA.createBlockData());
+        // Visual & audio feedback
+        world.spawnParticle(Particle.BLOCK_CRACK, center, 20, 0.3, 0.3, 0.3, Material.RED_GLAZED_TERRACOTTA.createBlockData());
         world.playSound(center, Sound.BLOCK_ANVIL_USE, 0.7f, 1.8f);
-        world.playSound(center, Sound.BLOCK_STONE_HIT, 1.0f, 0.9f);
 
         // Roll explosion chance
         double roll = ThreadLocalRandom.current().nextDouble(0.0, 100.0);
@@ -155,7 +143,7 @@ public class ShardManager {
             return true;
         }
 
-        // SUCCESSFUL MINING HIT
+        // SUCCESSFUL MINING DROP
         shard.incrementHitCount();
         shard.increaseExplosionChance(
                 plugin.getConfigManager().getShardChanceIncreasePerHit(),
@@ -171,7 +159,7 @@ public class ShardManager {
             orb.setExperience(exp);
         }
 
-        // Drop loot item on ground
+        // Drop loot items on ground
         List<LootItem> lootTable = plugin.getConfigManager().getLootItems();
         boolean droppedAny = false;
         for (LootItem lootItem : lootTable) {
@@ -216,14 +204,14 @@ public class ShardManager {
         shard.setCooldownRemaining(plugin.getConfigManager().getShardCooldownSeconds());
         shard.resetExplosionChance(plugin.getConfigManager().getShardBaseExplosionChance());
 
-        // Massive explosion effects
+        // Massive explosion effects (sound & particles)
         world.spawnParticle(Particle.EXPLOSION_HUGE, center, 3, 0.5, 0.5, 0.5);
         world.spawnParticle(Particle.FLAME, center, 50, 0.8, 0.8, 0.8, 0.15);
         world.spawnParticle(Particle.SMOKE_LARGE, center, 30, 0.5, 0.5, 0.5, 0.1);
         world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 2.5f, 0.8f);
         world.playSound(center, Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 1.8f, 0.9f);
 
-        // AOE Damage & knockback (lethal to naked, iron, and half-diamond)
+        // AOE Damage & knockback (lethal to naked, iron, and half-diamond) WITHOUT block damage
         double radius = plugin.getConfigManager().getShardExplosionRadius();
         double damage = plugin.getConfigManager().getShardExplosionDamage();
         double radiusSq = radius * radius;
@@ -236,8 +224,6 @@ public class ShardManager {
                 knockback.setY(0.55);
                 knockback.multiply(1.4);
                 p.setVelocity(knockback);
-                p.sendMessage(ColorUtil.colorize(plugin.getConfigManager().getPlayerPrefix()
-                        + "&cОсколок Рая перегрузился и сдетонировал!"));
             }
         }
 

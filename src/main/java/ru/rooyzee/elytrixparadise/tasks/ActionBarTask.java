@@ -33,14 +33,19 @@ public class ActionBarTask extends BukkitRunnable {
         int totalShards = plugin.getShardManager().getAllShards().size();
 
         tickCount++;
-        // Switch general message smoothly every 6 seconds (not every second)
-        int phase = (tickCount / 6) % 2;
+        // Полный цикл 35 секунд: 30 секунд статус осколков, 5 секунд подсказка отключения /paradise off
+        int cycleSecond = tickCount % 35;
+        boolean showOffHint = (cycleSecond >= 30);
 
         for (Player player : world.getPlayers()) {
+            if (plugin.isActionBarDisabled(player.getUniqueId())) {
+                continue;
+            }
+
             Location pLoc = player.getLocation();
             double dy = pLoc.getY();
 
-            // 3D Proximity Check: only show actionbar if in event Y range (not running on ground)
+            // 3D Proximity Check: высота и горизонтальный радиус
             if (dy < minY || dy > maxY) {
                 continue;
             }
@@ -51,7 +56,7 @@ public class ActionBarTask extends BukkitRunnable {
                 continue;
             }
 
-            // Check if player is near a specific shard (< 6 blocks)
+            // Проверка близости к конкретному осколку (< 6 блоков)
             ParadiseShard nearbyShard = null;
             for (ParadiseShard s : plugin.getShardManager().getAllShards()) {
                 if (s.getLocation().getWorld().equals(pLoc.getWorld()) && s.getLocation().distanceSquared(pLoc) <= 36.0) {
@@ -70,10 +75,10 @@ public class ActionBarTask extends BukkitRunnable {
                     msg = "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBОсколок Рая &8| &cПерезарядка &8| &#F8BEFB" + timeStr;
                 }
             } else {
-                if (phase == 0) {
-                    msg = "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место &8| &fОсколков активно: &#F8BEFB" + activeShards + "&7/&#F8BEFB" + totalShards;
+                if (showOffHint) {
+                    msg = "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место &8| &7Чтобы отключить: &#F8BEFB/paradise off";
                 } else {
-                    msg = "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место &8| &fДобывай осколки ради наград";
+                    msg = "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место &8| &fОсколков активно: &#F8BEFB" + activeShards + "&7/&#F8BEFB" + totalShards;
                 }
             }
 

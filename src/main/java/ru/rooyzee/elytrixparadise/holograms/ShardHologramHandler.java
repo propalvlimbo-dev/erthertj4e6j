@@ -28,7 +28,8 @@ public class ShardHologramHandler {
     }
 
     public void createOrUpdateHologram(ParadiseShard shard) {
-        Location holoLoc = shard.getLocation().clone().add(0.5, 2.2, 0.5);
+        // Hologram moved 1 block higher (3.2 blocks above the block)
+        Location holoLoc = shard.getLocation().clone().add(0.5, 3.2, 0.5);
         List<String> lines = getHologramLines(shard);
 
         if (decentHologramsPresent) {
@@ -37,6 +38,7 @@ public class ShardHologramHandler {
                 if (holo == null) {
                     DHAPI.createHologram(shard.getId(), holoLoc, lines);
                 } else {
+                    DHAPI.moveHologram(holo, holoLoc);
                     DHAPI.setHologramLines(holo, lines);
                 }
                 return;

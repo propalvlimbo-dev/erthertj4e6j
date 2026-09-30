@@ -40,7 +40,31 @@ public class ParadiseCommand implements CommandExecutor, TabCompleter {
 
         String sub = args[0].toLowerCase();
 
-        // 1. /ep tp — Телепортация на ивент
+        // 1. /paradise off — Отключение Actionbar для игрока
+        if (sub.equals("off") || sub.equals("disableactionbar")) {
+            if (!(sender instanceof Player)) {
+                sender.sendMessage(ColorUtil.colorize(adminPrefix + "&cКоманда доступна только игрокам!"));
+                return true;
+            }
+            Player player = (Player) sender;
+            plugin.setActionBarDisabled(player.getUniqueId(), true);
+            player.sendMessage(ColorUtil.colorize(playerPrefix + "&cОтображение Actionbar отключено! &7(Включить: &#F8BEFB/paradise on&7)"));
+            return true;
+        }
+
+        // 2. /paradise on — Включение Actionbar для игрока
+        if (sub.equals("on") || sub.equals("enableactionbar")) {
+            if (!(sender instanceof Player)) {
+                sender.sendMessage(ColorUtil.colorize(adminPrefix + "&cКоманда доступна только игрокам!"));
+                return true;
+            }
+            Player player = (Player) sender;
+            plugin.setActionBarDisabled(player.getUniqueId(), false);
+            player.sendMessage(ColorUtil.colorize(playerPrefix + "&aОтображение Actionbar включено!"));
+            return true;
+        }
+
+        // 3. /ep tp — Телепортация на ивент
         if (sub.equals("tp") || sub.equals("teleport")) {
             if (!(sender instanceof Player)) {
                 sender.sendMessage(ColorUtil.colorize(adminPrefix + "&cКоманда доступна только игрокам!"));
@@ -58,7 +82,7 @@ public class ParadiseCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        // 2. /ep info — Информация
+        // 4. /ep info — Информация
         if (sub.equals("info")) {
             int active = plugin.getShardManager().getActiveShardsCount();
             int total = plugin.getShardManager().getAllShards().size();
@@ -75,7 +99,7 @@ public class ParadiseCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        // 3. /ep schem — Инструкция
+        // 5. /ep schem — Инструкция
         if (sub.equals("schem") || sub.equals("schematic")) {
             sender.sendMessage(ColorUtil.colorize(adminPrefix + "&fСхематика должна находиться по пути:"));
             sender.sendMessage(ColorUtil.colorize("&eplugins/ElytrixParadise/schematics/" + cm.getSchematicFile()));
@@ -89,16 +113,22 @@ public class ParadiseCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        // 4. /ep reload
+        // 6. /ep reload
         if (sub.equals("reload")) {
             cm.load();
             plugin.getSchematicManager().invalidateCache();
             plugin.getSchematicManager().scanAndRegisterShards();
-            sender.sendMessage(ColorUtil.colorize(adminPrefix + "&aКонфигурация, награды и сообщения успешно перезагружены!"));
+            plugin.getRegionManager().createParadiseRegion(
+                    cm.getCenterLocation(),
+                    cm.getScanRadiusXZ(),
+                    cm.getScanMinY(),
+                    cm.getScanMaxY()
+            );
+            sender.sendMessage(ColorUtil.colorize(adminPrefix + "&aКонфигурация, награды, регион и сообщения успешно перезагружены!"));
             return true;
         }
 
-        // 5. /ep scan — Сканирование осколков в радиусе 120 блоков
+        // 7. /ep scan — Сканирование осколков в радиусе 120 блоков
         if (sub.equals("scan")) {
             sender.sendMessage(ColorUtil.colorize(adminPrefix + "&7Сканирование мира на наличие Осколков Рая (радиус: " + cm.getScanRadiusXZ() + " блоков)..."));
             int count = plugin.getSchematicManager().scanAndRegisterShards();
@@ -111,27 +141,34 @@ public class ParadiseCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        // 6. /ep paste
+        // 8. /ep paste
         if (sub.equals("paste")) {
             Location center = cm.getCenterLocation();
             sender.sendMessage(ColorUtil.colorize(adminPrefix + "&7Вставка схематики '" + cm.getSchematicFile() + "' на координаты X=0, Y=" + cm.getCenterY() + ", Z=0..."));
             boolean success = plugin.getSchematicManager().pasteSchematic(cm.getSchematicFile(), center);
             if (success) {
-                sender.sendMessage(ColorUtil.colorize(adminPrefix + "&aСхематика успешно вставлена на X=0, Y=" + cm.getCenterY() + ", Z=0!"));
+                plugin.getRegionManager().createParadiseRegion(
+                        center,
+                        cm.getScanRadiusXZ(),
+                        cm.getScanMinY(),
+                        cm.getScanMaxY()
+                );
+                sender.sendMessage(ColorUtil.colorize(adminPrefix + "&aСхематика и регион успешно созданы на X=0, Y=" + cm.getCenterY() + ", Z=0!"));
             } else {
                 sender.sendMessage(ColorUtil.colorize(adminPrefix + "&cОшибка при вставке схематики! Проверьте консоль сервера."));
             }
             return true;
         }
 
-        // 7. /ep clear
+        // 9. /ep clear
         if (sub.equals("clear") || sub.equals("remove")) {
             plugin.getSchematicManager().clearSchematic();
-            sender.sendMessage(ColorUtil.colorize(adminPrefix + "&aСхематика и Осколки Рая успешно удалены!"));
+            plugin.getRegionManager().removeParadiseRegion(cm.getCenterLocation().getWorld());
+            sender.sendMessage(ColorUtil.colorize(adminPrefix + "&aСхематика, Осколки Рая и регион WorldGuard успешно удалены!"));
             return true;
         }
 
-        // 8. /ep setcenter
+        // 10. /ep setcenter
         if (sub.equals("setcenter")) {
             if (!(sender instanceof Player)) {
                 sender.sendMessage(ColorUtil.colorize(adminPrefix + "&cКоманда доступна только игрокам!"));
@@ -144,7 +181,7 @@ public class ParadiseCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        // 9. /ep setspawn
+        // 11. /ep setspawn
         if (sub.equals("setspawn")) {
             if (!(sender instanceof Player)) {
                 sender.sendMessage(ColorUtil.colorize(adminPrefix + "&cКоманда доступна только игрокам!"));
@@ -163,7 +200,7 @@ public class ParadiseCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            List<String> list = new ArrayList<>(Arrays.asList("help", "tp", "info", "schem"));
+            List<String> list = new ArrayList<>(Arrays.asList("help", "off", "on", "tp", "info", "schem"));
             if (sender.hasPermission("elytrixparadise.admin")) {
                 list.addAll(Arrays.asList("reload", "scan", "paste", "clear", "setcenter", "setspawn"));
             }
