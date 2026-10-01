@@ -915,4 +915,28 @@ public class SphereManager {
     public List<ChainNode> getChains() {
         return chains;
     }
+
+    public int getAliveChainsCount() {
+        return Math.max(0, chains.size() - getBrokenChainsCount());
+    }
+
+    public int getCurrentSphereHp() {
+        return currentSphereHp;
+    }
+
+    public int getMaxSphereHp() {
+        return maxSphereHp;
+    }
+
+    public int getExplosionCount() {
+        return explosionCount;
+    }
+
+    public int getMaxExplosions() {
+        return maxExplosions;
+    }
+
+    public int getCooldownRemaining() {
+        return cooldownRemaining;
+    }
 }

@@ -125,6 +125,13 @@ public class Main extends JavaPlugin {
             pluginCmd.setTabCompleter(cmd);
         }
 
+        // 9. Регистрация PlaceholderAPI расширения
+        if (Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+            new ru.rooyzee.elytrixparadise.placeholders.ParadisePlaceholder(this, "elytrixparadise").register();
+            new ru.rooyzee.elytrixparadise.placeholders.ParadisePlaceholder(this, "paradise").register();
+            getLogger().info("PlaceholderAPI успешно подключен к ElytrixParadise (%elytrixparadise_...% и %paradise_...%)!");
+        }
+
         getLogger().info("=========================================");
         getLogger().info("  ElytrixParadise v" + getDescription().getVersion() + " [Райское место] включён!");
         getLogger().info("  Координаты ивента: X=0, Y=" + configManager.getCenterY() + ", Z=0");
