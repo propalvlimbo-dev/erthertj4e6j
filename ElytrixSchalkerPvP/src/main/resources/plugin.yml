@@ -1,11 +1,12 @@
 name: ElytrixSchalkerPvP
-version: '${project.version}'
+version: '1.0.0'
 main: ru.rooyzee.elytrixschalkerpvp.Main
 api-version: '1.16'
 authors: [rooyzee]
 description: Шалкера с лутом на варп пвп
 website: https://elytrix.pw
 depend: [DecentHolograms]
+softdepend: [PlaceholderAPI]
 commands:
   elytrixschalker:
     description: Управление шалкерами

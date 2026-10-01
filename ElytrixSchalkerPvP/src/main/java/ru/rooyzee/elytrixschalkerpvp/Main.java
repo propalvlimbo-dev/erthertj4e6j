@@ -1,5 +1,6 @@
 package ru.rooyzee.elytrixschalkerpvp;
 
+import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 import ru.rooyzee.elytrixschalkerpvp.command.SchalkerCommand;
 import ru.rooyzee.elytrixschalkerpvp.command.SchalkerListener;
@@ -8,6 +9,7 @@ import ru.rooyzee.elytrixschalkerpvp.manager.ConfigManager;
 import ru.rooyzee.elytrixschalkerpvp.manager.HologramManager;
 import ru.rooyzee.elytrixschalkerpvp.manager.LootManager;
 import ru.rooyzee.elytrixschalkerpvp.manager.SchalkerManager;
+import ru.rooyzee.elytrixschalkerpvp.placeholder.SchalkerPlaceholder;
 
 public class Main extends JavaPlugin {
 
@@ -27,15 +29,13 @@ public class Main extends JavaPlugin {
         this.hologramManager = new HologramManager(this);
         this.schalkerManager = new SchalkerManager(this);
 
-        // Загружаем шалкеры с задержкой чтобы миры успели прогрузиться, а также сразу
+        // Загружаем шалкеры
         schalkerManager.loadSchalkers();
-        // Повторная попытка через 3 секунды на случай если миры грузятся через Multiverse и т.п.
         getServer().getScheduler().runTaskLater(this, () -> {
             if (schalkerManager.getAllSchalkers().isEmpty()) {
                 getLogger().info("Retrying schalker load after 3 seconds (worlds may not have been loaded)");
                 schalkerManager.loadSchalkers();
             } else {
-                // Проверяем есть ли шалкеры с незагруженными мирами и пытаемся их инициализировать
                 schalkerManager.getAllSchalkers().forEach(data -> {
                     if (!data.tryResolveWorld()) {
                         getLogger().info("Retrying init for schalker " + data.getId());
@@ -51,6 +51,15 @@ public class Main extends JavaPlugin {
 
         // Регистрация слушателей
         getServer().getPluginManager().registerEvents(new SchalkerListener(this), this);
+
+        // Регистрация плейсхолдеров
+        if (Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+            new SchalkerPlaceholder(this, "elytrixschalkerpvp").register();
+            new SchalkerPlaceholder(this, "elytrixshulkerpvp").register();
+            new SchalkerPlaceholder(this, "elytrixschalker").register();
+            new SchalkerPlaceholder(this, "elytrixshulker").register();
+            getLogger().info("PlaceholderAPI expansion registered successfully");
+        }
     }
 
     @Override
