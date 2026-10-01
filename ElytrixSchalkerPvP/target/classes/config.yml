@@ -1,0 +1,99 @@
+settings:
+  min-sleep-minutes: 15
+  max-sleep-minutes: 30
+  loot-time-seconds: 60
+  explosion-radius: 6
+  explosion-damage: 16.0
+  loot-cooldown-ms: 800 # Задержка между взятием предметов (в миллисекундах)
+
+rarity-chances:
+  COMMON: 75
+  RARE: 40
+  MYTHICAL: 15
+  LEGENDARY: 5
+
+rarity-display:
+  COMMON:
+    name: "Обычный"
+    color: "&7"
+    hex-color: "&#AAAAAA"
+  RARE:
+    name: "Редкий"
+    color: "&9"
+    hex-color: "&#5B9BF5"
+  MYTHICAL:
+    name: "Мифический"
+    color: "&c"
+    hex-color: "&#FF4D6A"
+  LEGENDARY:
+    name: "Легендарный"
+    color: "&e"
+    hex-color: "&#FFD700"
+
+inventory-sizes:
+  COMMON: 27
+  RARE: 27
+  MYTHICAL: 36
+  LEGENDARY: 45
+
+# Процент заполнения. Для 27 слотов: 22% = ~6 предметов, 45% = ~12 предметов.
+loot-fill-percent:
+  COMMON:
+    min: 22
+    max: 45
+  RARE:
+    min: 22
+    max: 45
+  MYTHICAL:
+    min: 25
+    max: 50
+  LEGENDARY:
+    min: 30
+    max: 55
+
+messages:
+  prefix: "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7»"
+  schalker-created: "&aШалкер успешно создан"
+  schalker-removed: "&aШалкер успешно удалён"
+  schalker-not-found: "&cШалкер не найден на этой позиции"
+  schalker-spawned: "&aШалкер заспавнен с редкостью: &#F8BEFB{rarity}"
+  schalker-sleeping: "&cШалкер спит. Осталось: &#F8BEFB{time}"
+  schalker-opened: "&fШалкер открыт! Осталось: &#F8BEFB{time} сек."
+  schalker-closed-time: "&cВремя вышло! Шалкер засыпает..."
+  schalker-explosion-warning: "&c⚠ Шалкер вот-вот взорвётся!"
+  schalker-exploded: "&cШалкер взорвался!"
+  edit-opened: "&fРедактирование лута: &#F8BEFB{rarity}"
+  edit-saved: "&aЛут сохранён для редкости: &#F8BEFB{rarity}"
+  reload-success: "&aКонфигурация перезагружена"
+  no-permission: "&cНедостаточно прав"
+  usage: "&fИспользование: &#F8BEFB/elytrixschalker <create|remove|edit|reload|spawn>"
+  invalid-rarity: "&cНеверная редкость. Доступные: &fcommon, rare, mythical, legendary"
+  stand-on-shulker: "&cВстаньте на шалкер бокс"
+  already-exists: "&cШалкер уже существует на этой позиции"
+
+hologram:
+  sleeping:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx"
+    - ""
+    - "&8Загадочный шалкер"
+    - ""
+    - "&7Статус: &fСпит"
+    - "&7Примерное время: &f~{time}"
+  ready:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx"
+    - ""
+    - "{rarity_color}Шалкер {rarity_name}"
+    - ""
+    - "&7Статус: &aГотов"
+    - "&7● &fОткройте чтобы забрать лут"
+  active:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx"
+    - ""
+    - "{rarity_color}Шалкер {rarity_name}"
+    - ""
+    - "&7Статус: &eОткрыт"
+    - "&7Осталось: &f{time} сек."
+  exploding:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx"
+    - ""
+    - "&c⚠ ВЗРЫВ ⚠"

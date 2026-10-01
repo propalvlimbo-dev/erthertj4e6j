@@ -1,0 +1,17 @@
+name: ElytrixSchalkerPvP
+version: '${project.version}'
+main: ru.rooyzee.elytrixschalkerpvp.Main
+api-version: '1.16'
+authors: [rooyzee]
+description: Шалкера с лутом на варп пвп
+website: https://elytrix.pw
+depend: [DecentHolograms]
+commands:
+  elytrixschalker:
+    description: Управление шалкерами
+    usage: /elytrixschalker <create|remove|edit|reload|spawn>
+    permission: elytrixschalker.admin
+permissions:
+  elytrixschalker.admin:
+    description: Доступ к командам управления шалкерами
+    default: op
