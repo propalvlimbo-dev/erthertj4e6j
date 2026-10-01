@@ -1,0 +1,58 @@
+name: ElytrixTrader
+version: '${project.version}'
+main: ru.rooyzee.elytrixtrader.Main
+api-version: '1.16'
+authors: [rooyzee]
+description: плагин на уникальных торговцев
+website: https://elytrix.pw
+
+depend: [VirtualEntityApi, BLib]
+softdepend: [FastAsyncWorldEdit, WorldEdit, Vault, PlaceholderAPI, BMenu]
+
+commands:
+  elytrixtrader:
+    description: Управление торговцами ElytrixTrader
+    usage: '/<command> help'
+    aliases: [etr, traders, ect]
+
+permissions:
+  elytrixtrader.trade:
+    description: Доступ к торговле
+    default: true
+  elytrixtrader.use:
+    description: Доступ к взаимодействию с торговцами
+    default: true
+  elytrixtrader.spawn:
+    description: Спавн торговцев
+    default: op
+  elytrixtrader.start:
+    description: Запуск ивента торговцев
+    default: op
+  elytrixtrader.kill:
+    description: Удаление торговцев
+    default: op
+  elytrixtrader.stop:
+    description: Остановка ивента торговцев
+    default: op
+  elytrixtrader.reload:
+    description: Перезагрузка конфигурации
+    default: op
+  elytrixtrader.edit:
+    description: Редактирование торгов через GUI
+    default: op
+  elytrixtrader.tp:
+    description: Телепорт к торговцу
+    default: op
+  elytrixtrader.*:
+    description: Все права ElytrixTrader
+    default: op
+    children:
+      elytrixtrader.trade: true
+      elytrixtrader.use: true
+      elytrixtrader.spawn: true
+      elytrixtrader.start: true
+      elytrixtrader.kill: true
+      elytrixtrader.stop: true
+      elytrixtrader.reload: true
+      elytrixtrader.edit: true
+      elytrixtrader.tp: true
