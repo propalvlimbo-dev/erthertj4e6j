@@ -43,8 +43,16 @@ schematic:
   not-found: "%admin_prefix%&cФайл схематики не найден в папке plugins/ElytrixParadise/schematics/!"
 
 event-start:
-  - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBСердце Рая активно! &fХрам заряжен &7(/ep tp)"
+  - ""
+  - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место"
+  - "&#F8BEFB&l┃ &fИвент &#F8BEFB«Райское место» &fначался!"
+  - "&#F8BEFB&l┃ &fСердце Рая снова активно."
+  - ""
 
 event-end:
-  - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBИвент завершен! &fСердце Рая истощено &8(&#F8BEFB3 часа&8)"
+  - ""
+  - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место"
+  - "&#F8BEFB&l┃ &fИвент &#F8BEFB«Райское место» &fзавершен!"
+  - "&#F8BEFB&l┃ &fСердце Рая истощено &8(&#F8BEFB3 часа&8)&f."
+  - ""
 
