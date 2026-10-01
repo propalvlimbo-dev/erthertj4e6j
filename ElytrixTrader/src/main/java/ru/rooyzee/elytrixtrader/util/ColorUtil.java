@@ -52,7 +52,7 @@ public final class ColorUtil {
 
     public static String fixHex(String input) {
         Matcher matcher = HEX_IN_TEXT.matcher(input);
-        StringBuilder builder = new StringBuilder(input.length());
+        StringBuffer builder = new StringBuffer(input.length());
         while (matcher.find()) {
             String hex = matcher.group(1).toLowerCase(Locale.ROOT);
             StringBuilder legacy = new StringBuilder("§x");
