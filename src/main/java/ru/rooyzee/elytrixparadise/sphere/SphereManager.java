@@ -725,20 +725,26 @@ public class SphereManager {
             Location pl = p.getLocation();
             double dx = pl.getX() - center.getX();
             double dz = pl.getZ() - center.getZ();
+            double distSq = dx * dx + dz * dz;
+
+            if (distSq > 150.0 * 150.0) continue;
+
             double dy = pl.getY() - center.getY();
+            boolean insideRoom = (distSq <= roomRadiusSq) && (dy >= -1 && dy <= 36);
 
-            boolean insideRoom = (dx * dx + dz * dz <= roomRadiusSq) && (dy >= -1 && dy <= 36);
-
+            // Космическая гравитация работает ТОЛЬКО когда Сердце Рая активно под куполом (state == INTACT)
             if (insideRoom && state == SphereState.INTACT && jumpBoostEnabled) {
                 if (p.getGameMode() != GameMode.CREATIVE && p.getGameMode() != GameMode.SPECTATOR) {
                     p.addPotionEffect(new PotionEffect(PotionEffectType.JUMP, 60, jumpAmp, true, false, true), true);
                     p.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING, 60, 0, true, false, true), true);
                 }
             } else {
-                if (p.hasPotionEffect(PotionEffectType.JUMP) && !p.hasPermission("elytrixparadise.jump.keep")) {
+                PotionEffect j = p.getPotionEffect(PotionEffectType.JUMP);
+                if (j != null && j.getAmplifier() >= 6 && !p.hasPermission("elytrixparadise.jump.keep")) {
                     p.removePotionEffect(PotionEffectType.JUMP);
                 }
-                if (p.hasPotionEffect(PotionEffectType.SLOW_FALLING) && !p.hasPermission("elytrixparadise.jump.keep")) {
+                PotionEffect sf = p.getPotionEffect(PotionEffectType.SLOW_FALLING);
+                if (sf != null && !p.hasPermission("elytrixparadise.jump.keep")) {
                     p.removePotionEffect(PotionEffectType.SLOW_FALLING);
                 }
             }
@@ -750,10 +756,12 @@ public class SphereManager {
         if (center == null || center.getWorld() == null) return;
         World world = center.getWorld();
         for (Player p : world.getPlayers()) {
-            if (p.hasPotionEffect(PotionEffectType.JUMP) && !p.hasPermission("elytrixparadise.jump.keep")) {
+            PotionEffect j = p.getPotionEffect(PotionEffectType.JUMP);
+            if (j != null && j.getAmplifier() >= 6 && !p.hasPermission("elytrixparadise.jump.keep")) {
                 p.removePotionEffect(PotionEffectType.JUMP);
             }
-            if (p.hasPotionEffect(PotionEffectType.SLOW_FALLING) && !p.hasPermission("elytrixparadise.jump.keep")) {
+            PotionEffect sf = p.getPotionEffect(PotionEffectType.SLOW_FALLING);
+            if (sf != null && !p.hasPermission("elytrixparadise.jump.keep")) {
                 p.removePotionEffect(PotionEffectType.SLOW_FALLING);
             }
         }
@@ -905,6 +913,7 @@ public class SphereManager {
             animationTask.cancel();
             animationTask = null;
         }
+        removeJumpBoostFromPlayers();
         clearAllHolograms();
     }
 
