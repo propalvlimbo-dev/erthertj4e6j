@@ -1,15 +1,26 @@
-name: ElytrixAirdrop
-version: 1.0.0
-main: ru.rooyzee.elytrixairdrop.Main
+name: ElytrixParadise
+version: 1.0.1
+main: ru.rooyzee.elytrixparadise.Main
 api-version: 1.16
 author: rooyzee
-depend: [WorldEdit, WorldGuard, DecentHolograms]
-softdepend: [PlaceholderAPI, FastAsyncWorldEdit]
+description: Paradise Cloud Schematic Spawner at X=0, Y=130, Z=0
+depend: [WorldEdit]
+softdepend: [WorldGuard, DecentHolograms, PlaceholderAPI, FastAsyncWorldEdit]
+
 commands:
-  elytrixairdrop:
-    description: Основная команда
-    aliases: [eairdrop, ea]
-    usage: /elytrixairdrop help
+  elytrixparadise:
+    description: Основная команда управления плагином ElytrixParadise
+    aliases: [paradise, ep]
+    usage: /elytrixparadise help
+    permission: elytrixparadise.use
+
 permissions:
-  elytrixairdrop.admin:
+  elytrixparadise.use:
+    description: Доступ к базовым командам (/ep help, /ep info, /ep schem)
+    default: true
+  elytrixparadise.tp:
+    description: Доступ к телепортации в Рай (/ep tp)
+    default: true
+  elytrixparadise.admin:
+    description: Полный доступ администратора ко всем командам (/ep reload, /ep paste, /ep setcenter, /ep setspawn)
     default: op

@@ -1,0 +1,80 @@
+prefix: '&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7»'
+
+general:
+  player-only: '{prefix}&cКоманда доступна только из игры.'
+  no-permission: '{prefix}&cНедостаточно прав'
+  reloaded: '{prefix}&aКонфигурация перезагружена'
+  unknown-trader: '{prefix}&cТорговец не найден: &7{trader}'
+  unknown-command: '{prefix}&cНеизвестная команда. Используй &7/etr help'
+  usage:
+    - '&#F8BEFB&l┃ &fElytrixTrader &8| &7торговцы по всему миру'
+    - '&#F8BEFB&l┃ &f/etr start &7<торговец> [кол-во] &8- &fзапустить ивент'
+    - '&#F8BEFB&l┃ &f/etr stop &7<торговец|all> &8- &fостановить ивент'
+    - '&#F8BEFB&l┃ &f/etr tp &7<торговец> &8- &fтелепорт к торговцу'
+    - '&#F8BEFB&l┃ &f/etr info &8- &fактивные торговцы'
+    - '&#F8BEFB&l┃ &f/etr edit &7[торговец] &8- &fредактор торгов'
+    - '&#F8BEFB&l┃ &f/etr reload &8- &fперезагрузка'
+    - '&#F8BEFB&l┃ '
+    - '&7● &fСайт: &#F8BEFBelytrix.pw'
+    - '&7● &fTelegram: &ft.me/elytrix_ru'
+    - '&7● &fDiscord: &fdsc.gg/elytrix_ru'
+
+trade:
+  success: '{prefix}&aУспешно &8| &fПолучено: &a{amount}x {item} &8| &f-{price}'
+  no-permission: '{prefix}&cНедостаточно прав &7({permission})'
+  not-enough:
+    - '&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBНедостаточно {currency}'
+    - '&#F8BEFB&l┃ &fНужно: &c{price}'
+    - '&#F8BEFB&l┃ &fУ тебя: &a{balance}'
+  out-of-stock: '{prefix}&cТовар закончился &7—'
+  limit: '{prefix}&cНе более &7{limit} &cза одну сделку'
+  cooldown: '{prefix}&cСделка будет доступна через &7{time}'
+  disabled: '{prefix}&cТорговец закрыт на отдых'
+  world: '{prefix}&cТовар доступен только в мире &7{world}'
+  level: '{prefix}&cНужен уровень &7{level}&c и выше'
+  unknown: '{prefix}&cСделка не найдена: &7{trade}'
+  inventory-full: '{prefix}&cИнвентарь переполнен &7— &cлишнее выпало под ноги'
+
+interaction:
+  too-far: '{prefix}&cПодойди ближе к торговцу &7({distance}/{radius})'
+  not-found: '{prefix}&7Рядом нет торговца &7—'
+  busy: '{prefix}&7Торговец ещё не готов &7—'
+
+admin:
+  spawned: '{prefix}&aТорговец заспавнен'
+  spawn-failed: '{prefix}&cНе найдено подходящее место для спавна'
+  spawn-disabled: '{prefix}&cЭтот торговец отключён в конфиге'
+  killed: '{prefix}&cИвент остановлен'
+  none-active: '{prefix}&7Активных торговцев нет &7—'
+  opened: '{prefix}&aМеню открыто &8| &f{trader} &7({distance} бл.)'
+  tped: '{prefix}&aТелепорт к торговцу &8| &f{trader} &7{world} {x} {y} {z}'
+  tp-usage: '{prefix}&7Использование: &f/etr tp &7<торговец>'
+  scheduled: '{prefix}&7Ивенты запускаются по расписанию &8| &fследующий: &#F8BEFB{time}'
+  list-line: '&#F8BEFB&l┃ &f{trader} &8| &7{world} &8| &7{x} {y} {z} &8| &a{left} &8| &7{region}'
+  schematic-missing: '{prefix}&cСхема не найдена: &7{schematic}'
+
+broadcast:
+  event-started:
+    - ' '
+    - '&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBСобытие началось'
+    - '&#F8BEFB&l┃ &fТорговец: {trader_colored}'
+    - '&#F8BEFB&l┃ &fМир: &#F8BEFB{world} &8| &#F8BEFB{x} {y} {z}'
+    - ' '
+  trader-spawn:
+    - ' '
+    - '&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBТорговец'
+    - '&#F8BEFB&l┃ &fТорговец: {trader_colored}'
+    - '&#F8BEFB&l┃ &fМир: &#F8BEFB{world} &8| &#F8BEFB{x} {y} {z}'
+    - '&#F8BEFB&l┃ &fДоступен: &#F8BEFB{left}'
+    - ' '
+  event-ended:
+    - ' '
+    - '&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBСобытие завершено'
+    - '&#F8BEFB&l┃ &fТорговцы покинули мир — ждите следующего события'
+    - ' '
+  purchase:
+    - ' '
+    - '&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBПокупка'
+    - '&#F8BEFB&l┃ &fТовар: &a{amount}x {reward}'
+    - '&#F8BEFB&l┃ &fТорговец: {trader_colored} &8| &#F8BEFB{price}'
+    - ' '

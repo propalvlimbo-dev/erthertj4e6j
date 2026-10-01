@@ -1,0 +1,199 @@
+# Меню покупки (BMenu) — внешний вид как в DeluxeMenus
+# Предметы-торги подставляются из кода плагина через аргументы {MATERIAL_1..14} и т.д.
+id: elytrixtrader:trader
+provider: default
+type: chest
+size: 54
+title: '{TITLE}'
+
+items:
+  black_glass:
+    material: black_stained_glass_pane
+    name: '&r'
+    slot: '0-9,17,18,26'
+  purple_glass:
+    material: purple_stained_glass_pane
+    name: '&r'
+    slot: '27,35,36,44-53'
+
+  trade_1:
+    material: '{MATERIAL_1}'
+    name: '&7« {COLOR}{NAME_1} &7»'
+    lore:
+      - '&#F8BEFB&l┃ '
+      - '&#F8BEFB&l┃ &fЦена: {COLOR}{PRICE_1}'
+      - '&#F8BEFB&l┃ &fВ наличии: {COLOR}{STOCK_1}'
+      - '&#F8BEFB&l┃ '
+      - '&7● &fНажмите для покупки'
+    slot: 19
+    on_click:
+      - '[console] elytrixtrader buy {PLAYER} {TRADE_1}'
+
+  trade_2:
+    material: '{MATERIAL_2}'
+    name: '&7« {COLOR}{NAME_2} &7»'
+    lore:
+      - '&#F8BEFB&l┃ '
+      - '&#F8BEFB&l┃ &fЦена: {COLOR}{PRICE_2}'
+      - '&#F8BEFB&l┃ &fВ наличии: {COLOR}{STOCK_2}'
+      - '&#F8BEFB&l┃ '
+      - '&7● &fНажмите для покупки'
+    slot: 20
+    on_click:
+      - '[console] elytrixtrader buy {PLAYER} {TRADE_2}'
+
+  trade_3:
+    material: '{MATERIAL_3}'
+    name: '&7« {COLOR}{NAME_3} &7»'
+    lore:
+      - '&#F8BEFB&l┃ '
+      - '&#F8BEFB&l┃ &fЦена: {COLOR}{PRICE_3}'
+      - '&#F8BEFB&l┃ &fВ наличии: {COLOR}{STOCK_3}'
+      - '&#F8BEFB&l┃ '
+      - '&7● &fНажмите для покупки'
+    slot: 21
+    on_click:
+      - '[console] elytrixtrader buy {PLAYER} {TRADE_3}'
+
+  trade_4:
+    material: '{MATERIAL_4}'
+    name: '&7« {COLOR}{NAME_4} &7»'
+    lore:
+      - '&#F8BEFB&l┃ '
+      - '&#F8BEFB&l┃ &fЦена: {COLOR}{PRICE_4}'
+      - '&#F8BEFB&l┃ &fВ наличии: {COLOR}{STOCK_4}'
+      - '&#F8BEFB&l┃ '
+      - '&7● &fНажмите для покупки'
+    slot: 22
+    on_click:
+      - '[console] elytrixtrader buy {PLAYER} {TRADE_4}'
+
+  trade_5:
+    material: '{MATERIAL_5}'
+    name: '&7« {COLOR}{NAME_5} &7»'
+    lore:
+      - '&#F8BEFB&l┃ '
+      - '&#F8BEFB&l┃ &fЦена: {COLOR}{PRICE_5}'
+      - '&#F8BEFB&l┃ &fВ наличии: {COLOR}{STOCK_5}'
+      - '&#F8BEFB&l┃ '
+      - '&7● &fНажмите для покупки'
+    slot: 23
+    on_click:
+      - '[console] elytrixtrader buy {PLAYER} {TRADE_5}'
+
+  trade_6:
+    material: '{MATERIAL_6}'
+    name: '&7« {COLOR}{NAME_6} &7»'
+    lore:
+      - '&#F8BEFB&l┃ '
+      - '&#F8BEFB&l┃ &fЦена: {COLOR}{PRICE_6}'
+      - '&#F8BEFB&l┃ &fВ наличии: {COLOR}{STOCK_6}'
+      - '&#F8BEFB&l┃ '
+      - '&7● &fНажмите для покупки'
+    slot: 24
+    on_click:
+      - '[console] elytrixtrader buy {PLAYER} {TRADE_6}'
+
+  trade_7:
+    material: '{MATERIAL_7}'
+    name: '&7« {COLOR}{NAME_7} &7»'
+    lore:
+      - '&#F8BEFB&l┃ '
+      - '&#F8BEFB&l┃ &fЦена: {COLOR}{PRICE_7}'
+      - '&#F8BEFB&l┃ &fВ наличии: {COLOR}{STOCK_7}'
+      - '&#F8BEFB&l┃ '
+      - '&7● &fНажмите для покупки'
+    slot: 25
+    on_click:
+      - '[console] elytrixtrader buy {PLAYER} {TRADE_7}'
+
+  trade_8:
+    material: '{MATERIAL_8}'
+    name: '&7« {COLOR}{NAME_8} &7»'
+    lore:
+      - '&#F8BEFB&l┃ '
+      - '&#F8BEFB&l┃ &fЦена: {COLOR}{PRICE_8}'
+      - '&#F8BEFB&l┃ &fВ наличии: {COLOR}{STOCK_8}'
+      - '&#F8BEFB&l┃ '
+      - '&7● &fНажмите для покупки'
+    slot: 28
+    on_click:
+      - '[console] elytrixtrader buy {PLAYER} {TRADE_8}'
+
+  trade_9:
+    material: '{MATERIAL_9}'
+    name: '&7« {COLOR}{NAME_9} &7»'
+    lore:
+      - '&#F8BEFB&l┃ '
+      - '&#F8BEFB&l┃ &fЦена: {COLOR}{PRICE_9}'
+      - '&#F8BEFB&l┃ &fВ наличии: {COLOR}{STOCK_9}'
+      - '&#F8BEFB&l┃ '
+      - '&7● &fНажмите для покупки'
+    slot: 29
+    on_click:
+      - '[console] elytrixtrader buy {PLAYER} {TRADE_9}'
+
+  trade_10:
+    material: '{MATERIAL_10}'
+    name: '&7« {COLOR}{NAME_10} &7»'
+    lore:
+      - '&#F8BEFB&l┃ '
+      - '&#F8BEFB&l┃ &fЦена: {COLOR}{PRICE_10}'
+      - '&#F8BEFB&l┃ &fВ наличии: {COLOR}{STOCK_10}'
+      - '&#F8BEFB&l┃ '
+      - '&7● &fНажмите для покупки'
+    slot: 30
+    on_click:
+      - '[console] elytrixtrader buy {PLAYER} {TRADE_10}'
+
+  trade_11:
+    material: '{MATERIAL_11}'
+    name: '&7« {COLOR}{NAME_11} &7»'
+    lore:
+      - '&#F8BEFB&l┃ '
+      - '&#F8BEFB&l┃ &fЦена: {COLOR}{PRICE_11}'
+      - '&#F8BEFB&l┃ &fВ наличии: {COLOR}{STOCK_11}'
+      - '&#F8BEFB&l┃ '
+      - '&7● &fНажмите для покупки'
+    slot: 31
+    on_click:
+      - '[console] elytrixtrader buy {PLAYER} {TRADE_11}'
+
+  trade_12:
+    material: '{MATERIAL_12}'
+    name: '&7« {COLOR}{NAME_12} &7»'
+    lore:
+      - '&#F8BEFB&l┃ '
+      - '&#F8BEFB&l┃ &fЦена: {COLOR}{PRICE_12}'
+      - '&#F8BEFB&l┃ &fВ наличии: {COLOR}{STOCK_12}'
+      - '&#F8BEFB&l┃ '
+      - '&7● &fНажмите для покупки'
+    slot: 32
+    on_click:
+      - '[console] elytrixtrader buy {PLAYER} {TRADE_12}'
+
+  trade_13:
+    material: '{MATERIAL_13}'
+    name: '&7« {COLOR}{NAME_13} &7»'
+    lore:
+      - '&#F8BEFB&l┃ '
+      - '&#F8BEFB&l┃ &fЦена: {COLOR}{PRICE_13}'
+      - '&#F8BEFB&l┃ &fВ наличии: {COLOR}{STOCK_13}'
+      - '&#F8BEFB&l┃ '
+      - '&7● &fНажмите для покупки'
+    slot: 33
+    on_click:
+      - '[console] elytrixtrader buy {PLAYER} {TRADE_13}'
+
+  trade_14:
+    material: '{MATERIAL_14}'
+    name: '&7« {COLOR}{NAME_14} &7»'
+    lore:
+      - '&#F8BEFB&l┃ '
+      - '&#F8BEFB&l┃ &fЦена: {COLOR}{PRICE_14}'
+      - '&#F8BEFB&l┃ &fВ наличии: {COLOR}{STOCK_14}'
+      - '&#F8BEFB&l┃ '
+      - '&7● &fНажмите для покупки'
+    slot: 34
+    on_click:
+      - '[console] elytrixtrader buy {PLAYER} {TRADE_14}'

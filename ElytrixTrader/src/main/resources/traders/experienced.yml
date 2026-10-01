@@ -1,0 +1,70 @@
+# ═══════════════════════════════════════════════════════════════
+#  Опытный Торговец — торгует за уровни опыта
+#  id торговца = имя файла: experienced
+#  Торгуемые предметы настраиваются в игре: /etr edit experienced
+# ═══════════════════════════════════════════════════════════════
+
+enabled: true
+display-name: '&#8CE99A&lОпытный Торговец'
+skin: 'Steve'
+hold-item: true
+spawn-sound: ENTITY_PLAYER_LEVELUP
+
+# Миры для спавна
+worlds:
+  - 'world'
+
+# Время жизни (секунд) — берётся из config.yml, но можно переопределить
+lifetime-seconds: 7200
+
+# Сколько случайных предметов показывать в меню (из редактора /etr edit)
+random-trades: 14
+
+# Кулдаун покупки на одного игрока (секунд)
+trade-cooldown-seconds: 60
+
+# Голограмма
+hologram:
+  enabled: true
+  height: 2.8
+  line-height: 0.30
+  lines:
+    - '&#8CE99A&lОпытный Торговец'
+    - '&7Хранитель опыта &8| &#F8BEFBelytrix.pw'
+    - ' '
+    - '&7● &fОсталось: &#8CE99A{left}'
+    - '&7● &fПКМ по торговцу — сделка'
+
+# Иконка в меню
+icon:
+  material: experience_bottle
+  amount: 1
+  glow: true
+
+# Информационный предмет в меню
+info-item:
+  material: book
+  display-name: '&#8CE99A&l{trader}'
+  lore:
+    - '&#8CE99A&l┃ &fОпыт: &#8CE99A{levels} ур. &8({exp} очк.)'
+    - '&#8CE99A&l┃ &fДо исчезновения: &#8CE99A{left}'
+    - '&#8CE99A&l┃ '
+    - '&7● &fОплата опытом'
+    - '&7● &fПокупка раз в 1 минуту'
+
+# Схематика
+# marker-material — блок, которым в схеме размечена СЕРЕДИНА постройки:
+# торговец встаёт ровно на этот блок (ноги на верхней грани). Над маркером
+# нужно оставить 2 блока воздуха под рост NPC.
+schematic:
+  enabled: true
+  file: 'experienced_trader'
+  marker-material: BEEHIVE
+  rotation: 0
+  offset-x: 0
+  offset-y: 0
+  offset-z: 0
+  clear-radius: 0
+
+# Предметы задаются через /etr edit experienced (trader_trades/experienced.yml)
+trades: []
