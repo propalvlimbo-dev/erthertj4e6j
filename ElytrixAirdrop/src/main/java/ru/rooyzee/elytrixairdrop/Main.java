@@ -2,7 +2,6 @@ package ru.rooyzee.elytrixairdrop;
 
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
-import ru.rooyzee.elytrixairdrop.airdrops.ActiveAirdrop;
 import ru.rooyzee.elytrixairdrop.commands.AirdropCommand;
 import ru.rooyzee.elytrixairdrop.listeners.AirdropEntityListener;
 import ru.rooyzee.elytrixairdrop.listeners.AirdropInteractListener;
@@ -57,14 +56,10 @@ public class Main extends JavaPlugin {
     @Override
     public void onDisable() {
         if (airdropManager != null) {
-            ActiveAirdrop a = airdropManager.getActive();
-            if (a != null) {
-                try {
-                    if (a.getHologramName() != null) hologramManager.removeHologram(a.getHologramName());
-                    if (a.getRegionId() != null && a.getCenter().getWorld() != null)
-                        regionManager.removeRegion(a.getCenter().getWorld(), a.getRegionId());
-                    if (a.getBackup() != null) schematicManager.restoreImmediate(a.getBackup());
-                } catch (Exception e) { e.printStackTrace(); }
+            try {
+                airdropManager.stop(false);
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
     }

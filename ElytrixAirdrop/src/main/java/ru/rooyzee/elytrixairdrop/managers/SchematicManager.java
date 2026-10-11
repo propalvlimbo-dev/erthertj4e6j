@@ -160,6 +160,10 @@ public class SchematicManager {
 
     public void restore(Map<Location, BlockData> backup) {
         if (backup == null || backup.isEmpty()) return;
+        if (!plugin.isEnabled()) {
+            restoreImmediate(backup);
+            return;
+        }
 
         double centerX = 0, centerY = 0, centerZ = 0;
         int count = 0;

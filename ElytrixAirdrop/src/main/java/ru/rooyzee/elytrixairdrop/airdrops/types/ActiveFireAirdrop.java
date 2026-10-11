@@ -11,6 +11,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitTask;
@@ -44,8 +45,7 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
     private final Set<Location> breakable = new HashSet<>();
     private final Map<Location, Inventory> chests = new HashMap<>();
     private final Map<Location, Map<Integer, ItemStack>> realLootBySlot = new HashMap<>();
-    private final Map<Location, SchematicManager.BlockData> meteorBackup = new ConcurrentHashMap<>();
-    private final Map<Location, SchematicManager.BlockData> craterBackup = new ConcurrentHashMap<>();
+    private final Map<Location, SchematicManager.BlockData> allModifiedBlocks = new ConcurrentHashMap<>();
     private final Map<UUID, Long> lootCooldowns = new ConcurrentHashMap<>();
     private final Set<UUID> trackedDebris = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final Random random = new Random();
@@ -120,9 +120,15 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
         if (waitingTask != null) { try { waitingTask.cancel(); } catch (Exception ignored) {} }
         if (spawnTask != null) { try { spawnTask.cancel(); } catch (Exception ignored) {} }
 
-        for (UUID id : trackedDebris) {
-            org.bukkit.entity.Entity ent = Bukkit.getEntity(id);
-            if (ent != null && ent.isValid()) ent.remove();
+        World world = getCenter() != null ? getCenter().getWorld() : null;
+        if (world != null) {
+            for (org.bukkit.entity.Entity ent : world.getEntities()) {
+                if (ent instanceof FallingBlock) {
+                    if (ent.getLocation().distanceSquared(getCenter()) <= 100 * 100) {
+                        ent.remove();
+                    }
+                }
+            }
         }
         trackedDebris.clear();
 
@@ -133,30 +139,59 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
             if (m.holoName != null) plugin.getHologramManager().removeHologram(m.holoName);
         }
 
-        // 1. Восстанавливаем все блоки кратера
-        for (Map.Entry<Location, SchematicManager.BlockData> e : craterBackup.entrySet()) {
+        // 1. Восстанавливаем все сохраненные блоки метеоритов и кратеров
+        for (Map.Entry<Location, SchematicManager.BlockData> e : allModifiedBlocks.entrySet()) {
             restoreBlock(e.getKey(), e.getValue());
         }
 
-        // 2. Восстанавливаем все блоки метеоритов
-        for (Map.Entry<Location, SchematicManager.BlockData> e : meteorBackup.entrySet()) {
-            restoreBlock(e.getKey(), e.getValue());
-        }
-
-        // 3. Зачищаем сундуки и остаточные обломки
+        // 2. Зачищаем эндер-сундуки
         for (Location loc : chests.keySet()) {
             if (loc.getBlock().getType() == Material.ENDER_CHEST) {
                 loc.getBlock().setType(Material.AIR, false);
             }
         }
 
+        // 3. Санитарная зачистка зоны радиуса 30 вокруг центра от остаточных магм, обсидиана, сундуков и огня
+        if (world != null) {
+            int cx = getCenter().getBlockX();
+            int cy = getCenter().getBlockY();
+            int cz = getCenter().getBlockZ();
+            int r = 28;
+            for (int dx = -r; dx <= r; dx++) {
+                for (int dz = -r; dz <= r; dz++) {
+                    if (dx * dx + dz * dz > r * r) continue;
+                    for (int dy = -8; dy <= 25; dy++) {
+                        Location chk = new Location(world, cx + dx, cy + dy, cz + dz);
+                        Material mat = chk.getBlock().getType();
+                        if (mat == Material.MAGMA_BLOCK || mat == Material.OBSIDIAN || mat == Material.ENDER_CHEST
+                                || mat == Material.FIRE || mat == Material.SOUL_FIRE || mat == Material.LAVA) {
+                            SchematicManager.BlockData orig = allModifiedBlocks.get(chk);
+                            if (orig != null) {
+                                restoreBlock(chk, orig);
+                            } else {
+                                chk.getBlock().setType(Material.AIR, false);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         meteors.clear();
         chests.clear();
         breakable.clear();
-        meteorBackup.clear();
-        craterBackup.clear();
+        allModifiedBlocks.clear();
         realLootBySlot.clear();
         lootCooldowns.clear();
+    }
+
+    private void backupOriginalBlock(Location loc) {
+        if (loc == null || loc.getWorld() == null) return;
+        Location norm = normalize(loc);
+        if (!allModifiedBlocks.containsKey(norm)) {
+            Block b = norm.getBlock();
+            allModifiedBlocks.put(norm, new SchematicManager.BlockData(b.getType(), b.getBlockData().getAsString()));
+        }
     }
 
     @Override
@@ -233,7 +268,7 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
         if (loc == null) return false;
         Location norm = normalize(loc);
         if (breakable.contains(norm)) return false;
-        if (meteorBackup.containsKey(norm)) return true;
+        if (allModifiedBlocks.containsKey(norm)) return true;
         if (chests.containsKey(norm)) return true;
         return super.isProtectedBlock(loc);
     }
@@ -262,7 +297,7 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
 
     public boolean isMeteorArea(Location loc) {
         Location norm = normalize(loc);
-        if (meteorBackup.containsKey(norm)) return true;
+        if (allModifiedBlocks.containsKey(norm)) return true;
         if (chests.containsKey(norm)) return true;
         return false;
     }
@@ -279,25 +314,24 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
             Inventory inv = chests.remove(meteor.chestLoc);
             realLootBySlot.remove(meteor.chestLoc);
             if (inv != null) for (HumanEntity v : new ArrayList<>(inv.getViewers())) v.closeInventory();
+            SchematicManager.BlockData d = allModifiedBlocks.get(meteor.chestLoc);
+            if (d != null) restoreBlock(meteor.chestLoc, d);
+            else if (meteor.chestLoc.getBlock().getType() == Material.ENDER_CHEST) {
+                meteor.chestLoc.getBlock().setType(Material.AIR, false);
+            }
         }
         if (meteor.holoName != null) {
             plugin.getHologramManager().removeHologram(meteor.holoName);
             meteor.holoName = null;
         }
         for (Location k : new HashSet<>(meteor.blocks)) {
-            SchematicManager.BlockData d = meteorBackup.remove(k);
             breakable.remove(k);
+            SchematicManager.BlockData d = allModifiedBlocks.get(k);
             if (d != null) restoreBlock(k, d);
-        }
-        if (meteor.chestLoc != null) {
-            SchematicManager.BlockData d = meteorBackup.remove(meteor.chestLoc);
-            if (d != null) restoreBlock(meteor.chestLoc, d);
-            else if (meteor.chestLoc.getBlock().getType() == Material.ENDER_CHEST) {
-                meteor.chestLoc.getBlock().setType(Material.AIR, false);
-            }
+            else k.getBlock().setType(Material.AIR, false);
         }
         for (Location k : new HashSet<>(meteor.craterBlocks)) {
-            SchematicManager.BlockData d = craterBackup.remove(k);
+            SchematicManager.BlockData d = allModifiedBlocks.get(k);
             if (d != null) restoreBlock(k, d);
         }
         meteors.remove(meteor.center);
@@ -381,6 +415,7 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
             fb.setHurtEntities(false);
             fb.setGravity(false);
             fb.setInvulnerable(true);
+            fb.setMetadata("elytrix_fire_debris", new FixedMetadataValue(plugin, true));
             fb.setVelocity(new Vector(0, 0, 0));
             trackedDebris.add(fb.getUniqueId());
             blocks.add(fb);
@@ -402,7 +437,7 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
                 currentY[0] = core.getY();
                 if (holder[0] != null) holder[0].cancel();
                 for (FallingBlock fb : blocks) {
-                    if (fb.isValid()) {
+                    if (fb != null && fb.isValid()) {
                         trackedDebris.remove(fb.getUniqueId());
                         fb.remove();
                     }
@@ -414,7 +449,7 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
             Vector vel = new Vector(0, -step, 0);
             for (int i = 0; i < blocks.size(); i++) {
                 FallingBlock fb = blocks.get(i);
-                if (!fb.isValid()) continue;
+                if (fb == null || !fb.isValid()) continue;
                 Vector off = offsets.get(i);
                 Location tp = new Location(w, core.getX() + off.getX() - 0.5,
                         currentY[0] + off.getY(), core.getZ() + off.getZ() - 0.5);
@@ -503,10 +538,8 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
                     if (b.getType() == Material.AIR) continue;
                     if (b.getType() == Material.BEDROCK) continue;
 
-                    if (!meteorBackup.containsKey(l) && !craterBackup.containsKey(l)) {
-                        craterBackup.put(l, new SchematicManager.BlockData(b.getType(), b.getBlockData().getAsString()));
-                        meteor.craterBlocks.add(l);
-                    }
+                    backupOriginalBlock(l);
+                    meteor.craterBlocks.add(l);
 
                     if (dy == 0) {
                         w.spawnParticle(Particle.BLOCK_CRACK, l.clone().add(0.5, 0.5, 0.5),
@@ -593,7 +626,7 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
                     if (dx * dx + dy * dy + dz * dz > r * r + 1) continue;
                     Location loc = normalize(new Location(w, cx + dx, cy + dy, cz + dz));
                     Block b = loc.getBlock();
-                    meteorBackup.putIfAbsent(loc, new SchematicManager.BlockData(b.getType(), b.getBlockData().getAsString()));
+                    backupOriginalBlock(loc);
                     b.setType(mat, false);
                     meteor.blocks.add(loc);
                 }
@@ -625,8 +658,7 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
         sortedBlocks.sort((a, b) -> Double.compare(b.distanceSquared(m.center), a.distanceSquared(m.center)));
 
         m.chestLoc = chestLoc;
-        m.blocks.remove(chestLoc);
-        sortedBlocks.remove(chestLoc);
+        backupOriginalBlock(chestLoc);
 
         final int[] index = {0};
         final BukkitTask[] holder = new BukkitTask[1];
@@ -645,6 +677,7 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
                 int perTick = 2;
                 for (int i = 0; i < perTick && index[0] < sortedBlocks.size(); i++, index[0]++) {
                     Location loc = sortedBlocks.get(index[0]);
+                    if (loc.equals(chestLoc)) continue;
                     Block b = loc.getBlock();
                     b.setType(Material.OBSIDIAN, false);
                     breakable.add(loc);
