@@ -1,5 +1,6 @@
 package ru.rooyzee.elytrixairdrop.listeners;
 
+import org.bukkit.Location;
 import org.bukkit.entity.FallingBlock;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -17,16 +18,26 @@ public class AirdropEntityListener implements Listener {
         this.plugin = plugin;
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onBlockChange(EntityChangeBlockEvent e) {
         if (!(e.getEntity() instanceof FallingBlock)) return;
+
         ActiveAirdrop a = plugin.getAirdropManager().getActive();
-        if (!(a instanceof ActiveFireAirdrop)) return;
-        ActiveFireAirdrop fire = (ActiveFireAirdrop) a;
-        if (fire.isTrackedDebris(e.getEntity().getUniqueId())) {
+        if (a == null) return;
+
+        Location loc = e.getBlock().getLocation();
+        if (loc.getWorld() == null || a.getCenter() == null || !loc.getWorld().equals(a.getCenter().getWorld())) {
+            return;
+        }
+
+        double distSq = loc.distanceSquared(a.getCenter());
+        // В зоне аирдропа (до 100 блоков) падающие блоки огненного аирдропа не должны превращаться в блоки
+        if (distSq <= 100 * 100) {
             e.setCancelled(true);
-            fire.removeTrackedDebris(e.getEntity().getUniqueId());
             e.getEntity().remove();
+            if (a instanceof ActiveFireAirdrop) {
+                ((ActiveFireAirdrop) a).removeTrackedDebris(e.getEntity().getUniqueId());
+            }
         }
     }
 }

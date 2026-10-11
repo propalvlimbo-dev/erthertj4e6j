@@ -40,12 +40,12 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
     private static final long LOOT_COOLDOWN_MS = 500L;
 
     private final List<BukkitTask> tasks = new ArrayList<>();
-    private final Map<Long, Meteor> meteors = new LinkedHashMap<>();
-    private final Set<Long> breakable = new HashSet<>();
-    private final Map<Long, Inventory> chests = new HashMap<>();
-    private final Map<Long, Map<Integer, ItemStack>> realLootBySlot = new HashMap<>();
-    private final Map<Long, SchematicManager.BlockData> meteorBackup = new HashMap<>();
-    private final Map<Long, SchematicManager.BlockData> craterBackup = new HashMap<>();
+    private final Map<Location, Meteor> meteors = new LinkedHashMap<>();
+    private final Set<Location> breakable = new HashSet<>();
+    private final Map<Location, Inventory> chests = new HashMap<>();
+    private final Map<Location, Map<Integer, ItemStack>> realLootBySlot = new HashMap<>();
+    private final Map<Location, SchematicManager.BlockData> meteorBackup = new ConcurrentHashMap<>();
+    private final Map<Location, SchematicManager.BlockData> craterBackup = new ConcurrentHashMap<>();
     private final Map<UUID, Long> lootCooldowns = new ConcurrentHashMap<>();
     private final Set<UUID> trackedDebris = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final Random random = new Random();
@@ -62,14 +62,13 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
 
     private static class Meteor {
         Location center;
-        long key;
         boolean cooled;
         boolean opened;
         long landTime;
         String holoName;
-        final Set<Long> blocks = new HashSet<>();
-        final Set<Long> craterBlocks = new HashSet<>();
-        Long chestKey;
+        final Set<Location> blocks = new HashSet<>();
+        final Set<Location> craterBlocks = new HashSet<>();
+        Location chestLoc;
     }
 
     public ActiveFireAirdrop(Location center, String regionId, String hologramName,
@@ -127,15 +126,29 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
         }
         trackedDebris.clear();
 
-        for (Inventory inv : chests.values())
+        for (Inventory inv : chests.values()) {
             for (HumanEntity v : new ArrayList<>(inv.getViewers())) v.closeInventory();
-        for (Meteor m : meteors.values())
+        }
+        for (Meteor m : meteors.values()) {
             if (m.holoName != null) plugin.getHologramManager().removeHologram(m.holoName);
+        }
 
-        for (Map.Entry<Long, SchematicManager.BlockData> e : meteorBackup.entrySet())
+        // 1. Восстанавливаем все блоки кратера
+        for (Map.Entry<Location, SchematicManager.BlockData> e : craterBackup.entrySet()) {
             restoreBlock(e.getKey(), e.getValue());
-        for (Map.Entry<Long, SchematicManager.BlockData> e : craterBackup.entrySet())
+        }
+
+        // 2. Восстанавливаем все блоки метеоритов
+        for (Map.Entry<Location, SchematicManager.BlockData> e : meteorBackup.entrySet()) {
             restoreBlock(e.getKey(), e.getValue());
+        }
+
+        // 3. Зачищаем сундуки и остаточные обломки
+        for (Location loc : chests.keySet()) {
+            if (loc.getBlock().getType() == Material.ENDER_CHEST) {
+                loc.getBlock().setType(Material.AIR, false);
+            }
+        }
 
         meteors.clear();
         chests.clear();
@@ -148,8 +161,8 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
 
     @Override
     public boolean handleChestClick(Main plugin, Player p, Location blockLoc) {
-        long key = meteorKey(blockLoc);
-        Inventory inv = chests.get(key);
+        Location normalized = normalize(blockLoc);
+        Inventory inv = chests.get(normalized);
         if (inv == null) return false;
 
         if (!isInZone(p)) {
@@ -157,7 +170,7 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
             return true;
         }
 
-        Meteor meteor = findMeteorByChest(key);
+        Meteor meteor = findMeteorByChest(normalized);
         if (meteor != null && !meteor.opened) {
             meteor.opened = true;
             lastOpenTime = System.currentTimeMillis();
@@ -179,9 +192,10 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
 
     @Override
     public boolean handleLootClick(Main plugin, Player p, InventoryClickEvent e) {
-        Long invKey = null;
-        for (Map.Entry<Long, Inventory> en : chests.entrySet())
+        Location invKey = null;
+        for (Map.Entry<Location, Inventory> en : chests.entrySet()) {
             if (en.getValue() == e.getInventory()) { invKey = en.getKey(); break; }
+        }
         if (invKey == null) return false;
 
         long now = System.currentTimeMillis();
@@ -217,17 +231,17 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
     @Override
     public boolean isProtectedBlock(Location loc) {
         if (loc == null) return false;
-        long key = meteorKey(loc);
-        if (breakable.contains(key)) return false;
-        if (meteorBackup.containsKey(key)) return true;
-        if (chests.containsKey(key)) return true;
+        Location norm = normalize(loc);
+        if (breakable.contains(norm)) return false;
+        if (meteorBackup.containsKey(norm)) return true;
+        if (chests.containsKey(norm)) return true;
         return super.isProtectedBlock(loc);
     }
 
     public boolean isBreakable(Location loc) {
         if (loc == null || loc.getWorld() == null) return false;
-        long key = meteorKey(loc);
-        return breakable.contains(key) && loc.getBlock().getType() == Material.OBSIDIAN;
+        Location norm = normalize(loc);
+        return breakable.contains(norm) && norm.getBlock().getType() == Material.OBSIDIAN;
     }
 
     public boolean isTrackedDebris(UUID id) {
@@ -239,56 +253,58 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
     }
 
     public void onBreakableBroken(Main plugin, Location loc) {
-        long key = meteorKey(loc);
-        breakable.remove(key);
-        meteorBackup.remove(key);
-        for (Meteor m : meteors.values()) m.blocks.remove(key);
+        Location norm = normalize(loc);
+        breakable.remove(norm);
+        for (Meteor m : meteors.values()) m.blocks.remove(norm);
         loc.getWorld().spawnParticle(Particle.BLOCK_CRACK, loc.clone().add(0.5, 0.5, 0.5),
                 15, 0.3, 0.3, 0.3, 0.1, Bukkit.createBlockData(Material.OBSIDIAN));
     }
 
     public boolean isMeteorArea(Location loc) {
-        long key = meteorKey(loc);
-        if (meteorBackup.containsKey(key)) return true;
-        if (chests.containsKey(key)) return true;
+        Location norm = normalize(loc);
+        if (meteorBackup.containsKey(norm)) return true;
+        if (chests.containsKey(norm)) return true;
         return false;
     }
 
-    private Meteor findMeteorByChest(long chestKey) {
-        for (Meteor m : meteors.values())
-            if (m.chestKey != null && m.chestKey == chestKey) return m;
+    private Meteor findMeteorByChest(Location chestLoc) {
+        for (Meteor m : meteors.values()) {
+            if (m.chestLoc != null && m.chestLoc.equals(chestLoc)) return m;
+        }
         return null;
     }
 
     private void cleanupMeteor(Main plugin, Meteor meteor) {
-        if (meteor.chestKey != null) {
-            Inventory inv = chests.remove(meteor.chestKey);
-            realLootBySlot.remove(meteor.chestKey);
+        if (meteor.chestLoc != null) {
+            Inventory inv = chests.remove(meteor.chestLoc);
+            realLootBySlot.remove(meteor.chestLoc);
             if (inv != null) for (HumanEntity v : new ArrayList<>(inv.getViewers())) v.closeInventory();
         }
         if (meteor.holoName != null) {
             plugin.getHologramManager().removeHologram(meteor.holoName);
             meteor.holoName = null;
         }
-        for (Long k : new HashSet<>(meteor.blocks)) {
+        for (Location k : new HashSet<>(meteor.blocks)) {
             SchematicManager.BlockData d = meteorBackup.remove(k);
             breakable.remove(k);
             if (d != null) restoreBlock(k, d);
         }
-        if (meteor.chestKey != null) {
-            SchematicManager.BlockData d = meteorBackup.remove(meteor.chestKey);
-            if (d != null) restoreBlock(meteor.chestKey, d);
+        if (meteor.chestLoc != null) {
+            SchematicManager.BlockData d = meteorBackup.remove(meteor.chestLoc);
+            if (d != null) restoreBlock(meteor.chestLoc, d);
+            else if (meteor.chestLoc.getBlock().getType() == Material.ENDER_CHEST) {
+                meteor.chestLoc.getBlock().setType(Material.AIR, false);
+            }
         }
-        for (Long k : new HashSet<>(meteor.craterBlocks)) {
+        for (Location k : new HashSet<>(meteor.craterBlocks)) {
             SchematicManager.BlockData d = craterBackup.remove(k);
             if (d != null) restoreBlock(k, d);
         }
-        meteors.remove(meteor.key);
+        meteors.remove(meteor.center);
     }
 
-    private void restoreBlock(long key, SchematicManager.BlockData data) {
-        Location loc = keyToLoc(key);
-        if (loc == null || data == null) return;
+    private void restoreBlock(Location loc, SchematicManager.BlockData data) {
+        if (loc == null || loc.getWorld() == null || data == null) return;
         Block b = loc.getBlock();
         b.setType(data.material, false);
         try { b.setBlockData(Bukkit.createBlockData(data.data), false); } catch (Exception ignored) {}
@@ -406,8 +422,7 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
                 fb.setVelocity(vel);
             }
 
-Location trail = new Location(w, core.getX(), currentY[0] + 1, core.getZ());
-            // Reduced particle counts + sound every other tick to cut network spam
+            Location trail = new Location(w, core.getX(), currentY[0] + 1, core.getZ());
             broadcastParticle(w, Particle.FLAME, trail, 12, 0.8, 0.4, 0.8, 0.04, null);
             broadcastParticle(w, Particle.SMOKE_LARGE, trail, 6, 0.8, 0.4, 0.8, 0.02, null);
             if (((int) currentY[0] & 1) == 0) {
@@ -435,12 +450,9 @@ Location trail = new Location(w, core.getX(), currentY[0] + 1, core.getZ());
 
     private void onImpact(Main plugin, Location target) {
         World w = target.getWorld();
-        // The target is the first air block above the platform. Keep the whole
-        // meteor above it; the old center put two blocks of the sphere into the ground.
         Location core = target.clone().add(0, SPHERE_RADIUS, 0);
+        Location visualCenter = core.clone().add(0.5, 0, 0.5);
 
-Location visualCenter = core.clone().add(0.5, 0, 0.5);
-        // Lower particle counts — still looks punchy, far less packet spam on impact
         broadcastParticle(w, Particle.EXPLOSION_HUGE, visualCenter, 3, 1.5, 0.8, 1.5, 0, null);
         broadcastParticle(w, Particle.LAVA, visualCenter, 40, 3, 1.5, 3, 0, null);
         broadcastParticle(w, Particle.FLAME, visualCenter, 60, 4, 1.5, 4, 0.2, null);
@@ -454,14 +466,13 @@ Location visualCenter = core.clone().add(0.5, 0, 0.5);
             p.playSound(p.getLocation(), Sound.BLOCK_ANVIL_LAND, 0.8f, 0.5f);
         }
 
-        long key = meteorKey(core);
+        Location normCore = normalize(core);
         Meteor m = new Meteor();
-        m.center = core;
-        m.key = key;
+        m.center = normCore;
         m.landTime = System.currentTimeMillis();
-        meteors.put(key, m);
+        meteors.put(normCore, m);
 
-        buildSphere(core, Material.MAGMA_BLOCK, m);
+        buildSphere(normCore, Material.MAGMA_BLOCK, m);
         applyDamage(core);
 
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
@@ -472,13 +483,12 @@ Location visualCenter = core.clone().add(0.5, 0, 0.5);
         phase = "cooling";
 
         m.holoName = plugin.getHologramManager().createHologram(
-                core.clone().add(0.5, SPHERE_RADIUS + 1.5, 0.5),
+                normCore.clone().add(0.5, SPHERE_RADIUS + 1.5, 0.5),
                 Collections.singletonList(meteorHoloLine(m)));
     }
 
     private void createCrater(Main plugin, World w, Location target, Meteor meteor) {
         int cx = target.getBlockX(), cy = target.getBlockY() - 1, cz = target.getBlockZ();
-        List<FallingBlock> debris = new ArrayList<>();
 
         for (int dx = -CRATER_RADIUS; dx <= CRATER_RADIUS; dx++) {
             for (int dz = -CRATER_RADIUS; dz <= CRATER_RADIUS; dz++) {
@@ -488,40 +498,24 @@ Location visualCenter = core.clone().add(0.5, 0, 0.5);
                 int depth = (int) Math.round(1.5 - Math.sqrt(distSq) * 0.3);
                 if (depth < 0) depth = 0;
                 for (int dy = 0; dy <= depth; dy++) {
-                    Location l = new Location(w, cx + dx, cy - dy, cz + dz);
+                    Location l = normalize(new Location(w, cx + dx, cy - dy, cz + dz));
                     Block b = l.getBlock();
                     if (b.getType() == Material.AIR) continue;
                     if (b.getType() == Material.BEDROCK) continue;
-                    long k = meteorKey(l);
-                    if (meteorBackup.containsKey(k) || craterBackup.containsKey(k)) continue;
 
-                    craterBackup.put(k, new SchematicManager.BlockData(b.getType(), b.getBlockData().getAsString()));
-                    meteor.craterBlocks.add(k);
+                    if (!meteorBackup.containsKey(l) && !craterBackup.containsKey(l)) {
+                        craterBackup.put(l, new SchematicManager.BlockData(b.getType(), b.getBlockData().getAsString()));
+                        meteor.craterBlocks.add(l);
+                    }
 
-                    if (dy == 0 && random.nextInt(100) < 85) {
-                        FallingBlock fb = w.spawnFallingBlock(l.clone().add(0.5, 0.5, 0.5), b.getBlockData());
-                        fb.setDropItem(false);
-                        fb.setHurtEntities(false);
-                        double vx = (random.nextDouble() - 0.5) * 1.4;
-                        double vz = (random.nextDouble() - 0.5) * 1.4;
-                        double vy = 0.6 + random.nextDouble() * 0.9;
-                        fb.setVelocity(new Vector(vx, vy, vz));
-                        trackedDebris.add(fb.getUniqueId());
-                        debris.add(fb);
+                    if (dy == 0) {
+                        w.spawnParticle(Particle.BLOCK_CRACK, l.clone().add(0.5, 0.5, 0.5),
+                                12, 0.4, 0.4, 0.4, 0.1, b.getBlockData());
                     }
                     b.setType(Material.AIR, false);
                 }
             }
         }
-
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            for (FallingBlock fb : debris) {
-                if (fb.isValid()) {
-                    trackedDebris.remove(fb.getUniqueId());
-                    fb.remove();
-                }
-            }
-        }, 50L);
     }
 
     private void applyDamage(Location center) {
@@ -579,15 +573,12 @@ Location visualCenter = core.clone().add(0.5, 0, 0.5);
             if (p.getGameMode() == GameMode.CREATIVE || p.getGameMode() == GameMode.SPECTATOR) continue;
             if (p.hasPermission("elytrixairdrop.admin")) continue;
 
-            p.addPotionEffect(new PotionEffect(PotionEffectType.WITHER, 80, 1, false, true));
+            p.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 40, 0, false, false, false));
+            p.addPotionEffect(new PotionEffect(PotionEffectType.CONFUSION, 60, 0, false, false, false));
 
             if (dealDamage) {
                 p.damage(ZONE_DAMAGE);
-            }
-
-            Block under = p.getLocation().subtract(0, 0.1, 0).getBlock();
-            if (under.getType() == Material.LAVA || under.getType() == Material.MAGMA_BLOCK) {
-                p.setFireTicks(60);
+                p.playSound(p.getLocation(), Sound.BLOCK_FIRE_AMBIENT, 0.4f, 1.2f);
             }
         }
     }
@@ -600,12 +591,11 @@ Location visualCenter = core.clone().add(0.5, 0, 0.5);
             for (int dy = -r; dy <= r; dy++)
                 for (int dz = -r; dz <= r; dz++) {
                     if (dx * dx + dy * dy + dz * dz > r * r + 1) continue;
-                    Location loc = new Location(w, cx + dx, cy + dy, cz + dz);
-                    long k = meteorKey(loc);
+                    Location loc = normalize(new Location(w, cx + dx, cy + dy, cz + dz));
                     Block b = loc.getBlock();
-                    meteorBackup.putIfAbsent(k, new SchematicManager.BlockData(b.getType(), b.getBlockData().getAsString()));
+                    meteorBackup.putIfAbsent(loc, new SchematicManager.BlockData(b.getType(), b.getBlockData().getAsString()));
                     b.setType(mat, false);
-                    meteor.blocks.add(k);
+                    meteor.blocks.add(loc);
                 }
     }
 
@@ -630,21 +620,13 @@ Location visualCenter = core.clone().add(0.5, 0, 0.5);
 
     private void convertToObsidian(Main plugin, Meteor m) {
         World w = m.center.getWorld();
+        List<Location> sortedBlocks = new ArrayList<>(m.blocks);
+        Location chestLoc = normalize(m.center);
+        sortedBlocks.sort((a, b) -> Double.compare(b.distanceSquared(m.center), a.distanceSquared(m.center)));
 
-        List<Long> sortedBlocks = new ArrayList<>(m.blocks);
-        long chestKey = meteorKey(m.center);
-        sortedBlocks.sort((a, b) -> {
-            Location la = keyToLoc(a);
-            Location lb = keyToLoc(b);
-            if (la == null || lb == null) return 0;
-            double da = la.distanceSquared(m.center);
-            double db = lb.distanceSquared(m.center);
-            return Double.compare(db, da);
-        });
-
-        m.chestKey = chestKey;
-        m.blocks.remove(chestKey);
-        sortedBlocks.remove((Long) chestKey);
+        m.chestLoc = chestLoc;
+        m.blocks.remove(chestLoc);
+        sortedBlocks.remove(chestLoc);
 
         final int[] index = {0};
         final BukkitTask[] holder = new BukkitTask[1];
@@ -662,17 +644,13 @@ Location visualCenter = core.clone().add(0.5, 0, 0.5);
 
                 int perTick = 2;
                 for (int i = 0; i < perTick && index[0] < sortedBlocks.size(); i++, index[0]++) {
-                    Long k = sortedBlocks.get(index[0]);
-                    Location loc = keyToLoc(k);
-                    if (loc == null) continue;
+                    Location loc = sortedBlocks.get(index[0]);
                     Block b = loc.getBlock();
-                    if (b.getType() != Material.MAGMA_BLOCK) continue;
-
                     b.setType(Material.OBSIDIAN, false);
-                    breakable.add(k);
+                    breakable.add(loc);
 
-                    Location center = loc.clone().add(0.5, 1.05, 0.5);
-                    broadcastParticle(w, Particle.SMOKE_NORMAL, center, 2, 0.15, 0.05, 0.15, 0.01, null);
+                    broadcastParticle(w, Particle.SMOKE_NORMAL, loc.clone().add(0.5, 0.5, 0.5),
+                            4, 0.15, 0.05, 0.15, 0.01, null);
 
                     for (Player p : Bukkit.getOnlinePlayers()) {
                         if (p.getWorld().equals(w) && p.getLocation().distance(loc) <= 25) {
@@ -691,17 +669,18 @@ Location visualCenter = core.clone().add(0.5, 0, 0.5);
     private void finishCooling(Main plugin, Meteor m, World w) {
         m.center.getBlock().setType(Material.ENDER_CHEST, false);
 
-        Inventory inv = createMaskedLootInventory(plugin, m.chestKey,
+        Inventory inv = createMaskedLootInventory(plugin, m.chestLoc,
                 plugin.getConfigManager().getConfig().getConfigurationSection("airdrops.fire"));
-        chests.put(m.chestKey, inv);
+        chests.put(m.chestLoc, inv);
 
         broadcastParticle(w, Particle.PORTAL, m.center.clone().add(0.5, 0.5, 0.5),
                 30, 0.6, 0.6, 0.6, 0.4, null);
 
-        for (Player p : Bukkit.getOnlinePlayers())
+        for (Player p : Bukkit.getOnlinePlayers()) {
             if (p.getWorld().equals(w) && p.getLocation().distance(m.center) <= 40) {
                 p.playSound(p.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 0.7f, 0.7f);
             }
+        }
 
         phase = "open";
     }
@@ -715,7 +694,7 @@ Location visualCenter = core.clone().add(0.5, 0, 0.5);
         return "&#F8BEFB● &fОстывает &8— &#F8BEFB" + rem + "с";
     }
 
-    private Inventory createMaskedLootInventory(Main plugin, long chestKey, ConfigurationSection cfg) {
+    private Inventory createMaskedLootInventory(Main plugin, Location chestLoc, ConfigurationSection cfg) {
         List<ItemStack> pool = plugin.getAirdropManager().getLootFileService().load("fire");
         int min = 10, max = 20;
         if (cfg != null) {
@@ -738,7 +717,7 @@ Location visualCenter = core.clone().add(0.5, 0, 0.5);
             realMap.put(slot, pool.get(random.nextInt(pool.size())).clone());
             inv.setItem(slot, mask.clone());
         }
-        realLootBySlot.put(chestKey, realMap);
+        realLootBySlot.put(chestLoc, realMap);
         return inv;
     }
 
@@ -751,12 +730,11 @@ Location visualCenter = core.clone().add(0.5, 0, 0.5);
         return mask;
     }
 
-private Location findTargetLocation() {
+    private Location findTargetLocation() {
         World w = getCenter().getWorld();
         int cx = getCenter().getBlockX(), cz = getCenter().getBlockZ();
         List<Location> valid = new ArrayList<>();
 
-        // Step by 2 — half the samples, still dense enough for platform targets
         for (int dx = -14; dx <= 14; dx += 2) {
             outer:
             for (int dz = -14; dz <= 14; dz += 2) {
@@ -766,7 +744,6 @@ private Location findTargetLocation() {
                 if (ground.getType() != Material.POLISHED_BLACKSTONE) continue;
                 if (!isFullCube(ground)) continue;
 
-                // Check only 4 cardinal neighbours + center instead of full 3x3
                 int[][] neigh = {{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}};
                 for (int[] n : neigh) {
                     int ax = x + n[0], az = z + n[1];
@@ -806,22 +783,8 @@ private Location findTargetLocation() {
         return true;
     }
 
-    private long meteorKey(Location loc) {
-        long x = loc.getBlockX() & 0x3FFFFFFL;
-        long y = loc.getBlockY() & 0xFFFL;
-        long z = loc.getBlockZ() & 0x3FFFFFFL;
-        return (x << 38) | (z << 12) | y;
-    }
-
-    private Location keyToLoc(long key) {
-        World w = getCenter().getWorld();
-        if (w == null) return null;
-        int y = (int) (key & 0xFFFL);
-        int z = (int) ((key >> 12) & 0x3FFFFFFL);
-        int x = (int) ((key >> 38) & 0x3FFFFFFL);
-        if ((x & 0x2000000) != 0) x |= 0xFC000000;
-        if ((z & 0x2000000) != 0) z |= 0xFC000000;
-        return new Location(w, x, y, z);
+    private Location normalize(Location loc) {
+        return new Location(loc.getWorld(), loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
     }
 
     private boolean isInZone(Player p) {
@@ -892,9 +855,9 @@ private Location findTargetLocation() {
         return "&7—";
     }
 
-private void broadcastParticle(World w, Particle particle, Location loc, int count,
+    private void broadcastParticle(World w, Particle particle, Location loc, int count,
                                    double dx, double dy, double dz, double extra, Object data) {
-        double maxDistSq = 80 * 80; // was 100 — tighter radius, uses distanceSquared
+        double maxDistSq = 80 * 80;
         for (Player p : Bukkit.getOnlinePlayers()) {
             if (!p.getWorld().equals(w)) continue;
             if (p.getLocation().distanceSquared(loc) > maxDistSq) continue;

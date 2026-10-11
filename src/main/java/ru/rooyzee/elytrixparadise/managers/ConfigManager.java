@@ -28,13 +28,13 @@ public class ConfigManager {
 
     private double spawnX = 0.5;
     private double spawnY = 172.0;
-    private double spawnZ = 0.5;
+    private double spawnZ = -3.0;
     private float spawnYaw = 0.0f;
     private float spawnPitch = 0.0f;
 
     private String schematicFile = "paradise.schem";
     private boolean pasteOnStartup = true;
-    private boolean clearOnDisable = true;
+    private boolean clearOnDisable = false;
     private boolean ignoreAir = true;
     private int schematicOffsetY = 0;
 
@@ -84,13 +84,16 @@ public class ConfigManager {
 
         spawnX = config.getDouble("location.spawn.x", 0.5);
         spawnY = config.getDouble("location.spawn.y", 172.0);
-        spawnZ = config.getDouble("location.spawn.z", 0.5);
+        spawnZ = config.getDouble("location.spawn.z", -3.0);
+        if (Math.abs(spawnZ - 0.5) < 0.001 || Math.abs(spawnZ) < 0.001) {
+            spawnZ = -3.0;
+        }
         spawnYaw = (float) config.getDouble("location.spawn.yaw", 0.0);
         spawnPitch = (float) config.getDouble("location.spawn.pitch", 0.0);
 
         schematicFile = config.getString("schematic.file", "paradise.schem");
         pasteOnStartup = config.getBoolean("schematic.paste-on-startup", true);
-        clearOnDisable = config.getBoolean("schematic.clear-on-disable", true);
+        clearOnDisable = config.getBoolean("schematic.clear-on-disable", false);
         ignoreAir = config.getBoolean("schematic.ignore-air", true);
         schematicOffsetY = config.getInt("schematic.offset-y", 0);
 
@@ -204,7 +207,11 @@ public class ConfigManager {
         if (world == null && !Bukkit.getWorlds().isEmpty()) {
             world = Bukkit.getWorlds().get(0);
         }
-        return new Location(world, spawnX, spawnY, spawnZ, spawnYaw, spawnPitch);
+        double sz = spawnZ;
+        if (Math.abs(sz - 0.5) < 0.001 || Math.abs(sz) < 0.001) {
+            sz = centerZ - 3.0;
+        }
+        return new Location(world, spawnX, spawnY, sz, spawnYaw, spawnPitch);
     }
 
     public void setCenterLocation(Location loc) {
