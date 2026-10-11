@@ -111,7 +111,10 @@ public final class TraderNpc {
     /** Ни ника, ни строки в табе, ни лишней информации о «игроке». */
     private void hideIdentity() {
         try { player.setName(""); } catch (Throwable ignored) {}
-        try { player.setDisplayName(Component.empty()); } catch (Throwable ignored) {}
+        try {
+            Component empty = Components.empty();
+            if (empty != null) player.setDisplayName(empty);
+        } catch (Throwable ignored) {}
         try { player.setListed(false); } catch (Throwable ignored) {}      // 1.19.4+
         try { player.hideFromTab(); } catch (Throwable ignored) {}
         try { player.setLatency(0); } catch (Throwable ignored) {}
@@ -298,7 +301,19 @@ public final class TraderNpc {
         if (state.toString().equals(lastHologramState)) return;
         lastHologramState = state.toString();
         for (int i = 0; i < holograms.size() && i < lines.size(); i++) {
-            holograms.get(i).setCustomName(Components.colored(lines.get(i)));
+            try {
+                Component comp = Components.colored(lines.get(i));
+                if (comp != null) {
+                    holograms.get(i).setCustomName(comp);
+                }
+            } catch (Throwable t) {
+                try {
+                    Component fallback = Components.colored(lines.get(i));
+                    if (fallback != null) {
+                        holograms.get(i).setCustomName(fallback);
+                    }
+                } catch (Throwable ignored) {}
+            }
         }
     }
 

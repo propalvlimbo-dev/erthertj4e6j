@@ -4,6 +4,9 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+
+import java.lang.reflect.Method;
 
 public final class Components {
 
@@ -18,13 +21,65 @@ public final class Components {
 
     public static Component colored(String legacyText) {
         if (legacyText == null || legacyText.isEmpty()) {
+            return empty();
+        }
+
+        // 1. Try JSON serialization with Adventure GsonComponentSerializer (supports full HEX &#RRGGBB)
+        try {
+            String json = toJson(legacyText);
+            return GsonComponentSerializer.gson().deserialize(json);
+        } catch (Throwable ignored) {
+        }
+
+        // 2. Try Adventure LegacyComponentSerializer
+        try {
+            String translated = ColorUtil.translate(legacyText);
+            return LegacyComponentSerializer.legacySection().deserialize(translated);
+        } catch (Throwable ignored) {
+        }
+
+        try {
+            return LegacyComponentSerializer.legacyAmpersand().deserialize(legacyText);
+        } catch (Throwable ignored) {
+        }
+
+        // 3. Try direct Component.text
+        try {
+            return Component.text(ColorUtil.strip(legacyText));
+        } catch (Throwable ignored) {
+        }
+
+        // 4. Try reflection as ultimate safety fallback
+        try {
+            Method textMethod = Component.class.getMethod("text", String.class);
+            Object result = textMethod.invoke(null, ColorUtil.strip(legacyText));
+            if (result instanceof Component) {
+                return (Component) result;
+            }
+        } catch (Throwable ignored) {
+        }
+
+        return empty();
+    }
+
+    public static Component empty() {
+        try {
             return Component.empty();
+        } catch (Throwable ignored) {
         }
         try {
-            return GsonComponentSerializer.gson().deserialize(toJson(legacyText));
-        } catch (Throwable throwable) {
-            return Component.text(ColorUtil.strip(legacyText));
+            Method emptyMethod = Component.class.getMethod("empty");
+            Object result = emptyMethod.invoke(null);
+            if (result instanceof Component) {
+                return (Component) result;
+            }
+        } catch (Throwable ignored) {
         }
+        try {
+            return Component.text("");
+        } catch (Throwable ignored) {
+        }
+        return null;
     }
 
     public static String toJson(String legacyText) {
