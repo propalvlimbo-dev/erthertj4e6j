@@ -11,6 +11,8 @@ import com.sk89q.worldedit.function.operation.Operation;
 import com.sk89q.worldedit.function.operation.Operations;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.session.ClipboardHolder;
+import com.sk89q.worldedit.world.block.BaseBlock;
+import com.sk89q.worldedit.world.block.BlockTypes;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -79,38 +81,67 @@ public class SchematicManager {
         int clearAbove = 15;
         int maxWorldY = world.getMaxHeight() - 1;
 
-        BlockVector3 minPos = clipboard.getRegion().getMinimumPoint();
-        BlockVector3 maxPos = clipboard.getRegion().getMaximumPoint();
+        Map<Long, int[]> columnY = new HashMap<>(); // key -> {minY, maxY}
+        List<int[]> solidBlocks = new ArrayList<>();
 
-        int minSchemY = minPos.getBlockY() + dy;
-        int maxSchemY = maxPos.getBlockY() + dy;
+        for (BlockVector3 pos : clipboard.getRegion()) {
+            BaseBlock block = clipboard.getFullBlock(pos);
+            if (block.getBlockType() == BlockTypes.AIR) continue;
 
-        // Предварительная загрузка и очистка всех столбцов внутри объема схематики
-        for (int x = minPos.getBlockX(); x <= maxPos.getBlockX(); x++) {
-            for (int z = minPos.getBlockZ(); z <= maxPos.getBlockZ(); z++) {
-                int wx = x + dx;
-                int wz = z + dz;
+            int wx = pos.getBlockX() + dx;
+            int wy = pos.getBlockY() + dy;
+            int wz = pos.getBlockZ() + dz;
 
-                if (!world.isChunkLoaded(wx >> 4, wz >> 4)) {
-                    world.getChunkAt(wx >> 4, wz >> 4);
-                }
+            long colKey = (((long) wx) << 32) | (wz & 0xFFFFFFFFL);
+            int[] yr = columnY.get(colKey);
+            if (yr == null) {
+                yr = new int[]{wy, wy};
+                columnY.put(colKey, yr);
+            } else {
+                if (wy < yr[0]) yr[0] = wy;
+                if (wy > yr[1]) yr[1] = wy;
+            }
 
-                int topY = world.getHighestBlockYAt(wx, wz);
-                int fromY = Math.max(0, Math.min(minSchemY - 2, topY - 6));
-                int toY = Math.min(maxWorldY, Math.max(maxSchemY + clearAbove, topY + 12));
+            boolean isBeacon = block.getBlockType().equals(com.sk89q.worldedit.world.block.BlockTypes.BEACON);
+            solidBlocks.add(new int[]{wx, wy, wz, isBeacon ? 1 : 0});
+        }
 
-                for (int y = fromY; y <= toY; y++) {
-                    Block b = world.getBlockAt(wx, y, wz);
-                    Material type = b.getType();
-                    if (type != Material.AIR && type != Material.CAVE_AIR) {
-                        Location loc = new Location(world, wx, y, wz);
-                        backup.putIfAbsent(loc, new BlockData(type, b.getBlockData().getAsString()));
-                        b.setType(Material.AIR, false);
-                    }
-                }
+        // 1. Очищаем только колонны, где присутствует схематика (не срезая окружающие холмы)
+        for (Map.Entry<Long, int[]> e : columnY.entrySet()) {
+            long key = e.getKey();
+            int wx = (int) (key >> 32);
+            int wz = (int) (key & 0xFFFFFFFFL);
+            int minY = e.getValue()[0];
+            int maxY = Math.min(maxWorldY, e.getValue()[1] + clearAbove);
+
+            if (!world.isChunkLoaded(wx >> 4, wz >> 4)) {
+                world.getChunkAt(wx >> 4, wz >> 4);
+            }
+
+            for (int y = minY; y <= maxY; y++) {
+                Block b = world.getBlockAt(wx, y, wz);
+                Material type = b.getType();
+                if (type == Material.AIR || type == Material.CAVE_AIR) continue;
+                Location loc = new Location(world, wx, y, wz);
+                backup.putIfAbsent(loc, new BlockData(type, b.getBlockData().getAsString()));
+                b.setType(Material.AIR, false);
             }
         }
 
+        // 2. Обязательно сохраняем все позиции вставки блоков схематики (даже если там стал AIR после очистки)
+        for (int[] sb : solidBlocks) {
+            int wx = sb[0], wy = sb[1], wz = sb[2];
+            Location loc = new Location(world, wx, wy, wz);
+            if (!backup.containsKey(loc)) {
+                Block b = world.getBlockAt(wx, wy, wz);
+                backup.put(loc, new BlockData(b.getType(), b.getBlockData().getAsString()));
+            }
+            if (sb[3] == 1) {
+                beacons.add(loc.clone());
+            }
+        }
+
+        // 3. Вставляем схематику через WorldEdit
         try (EditSession editSession = WorldEdit.getInstance()
                 .getEditSessionFactory()
                 .getEditSession(BukkitAdapter.adapt(world), -1)) {
@@ -120,16 +151,6 @@ public class SchematicManager {
                     .ignoreAirBlocks(true)
                     .build();
             Operations.complete(op);
-
-            for (BlockVector3 pos : clipboard.getRegion()) {
-                if (clipboard.getFullBlock(pos).getBlockType().equals(com.sk89q.worldedit.world.block.BlockTypes.BEACON)) {
-                    int wx = pos.getBlockX() + dx;
-                    int wy = pos.getBlockY() + dy;
-                    int wz = pos.getBlockZ() + dz;
-                    beacons.add(new Location(world, wx, wy, wz));
-                }
-            }
-
             return new PasteResult(backup, beacons);
         } catch (Exception e) {
             plugin.getLogger().severe("Failed to paste schematic: " + e.getMessage());
@@ -197,8 +218,9 @@ public class SchematicManager {
                 for (Map.Entry<Location, BlockData> e : wave) {
                     try {
                         Block b = e.getKey().getBlock();
-                        if (b.getType() != e.getValue().material) {
-                            b.setType(e.getValue().material, false);
+                        Material targetMat = e.getValue().material;
+                        if (b.getType() != targetMat) {
+                            b.setType(targetMat, false);
                         }
                         try {
                             org.bukkit.block.data.BlockData data = Bukkit.createBlockData(e.getValue().data);
