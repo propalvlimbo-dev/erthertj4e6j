@@ -2,57 +2,35 @@ prefix:
   admin: "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» "
   player: "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» "
 
-no-permission: "%admin_prefix%&cУ вас недостаточно прав для выполнения этой команды!"
-only-player: "%admin_prefix%&cКоманда доступна только игрокам!"
-unknown-command: "%admin_prefix%&cНеизвестная команда. Введите &f/ep help &cдля справки."
-reload-success: "%admin_prefix%&aКонфигурация, награды и сообщения успешно перезагружены!"
-teleport-success: "%player_prefix%&aВы успешно телепортированы в &#F8BEFBРайское место&a!"
-center-updated: "%admin_prefix%&aЦентральные координаты успешно обновлены!"
-spawn-updated: "%admin_prefix%&aТочка спавна игроков успешно обновлена!"
+teleport:
+  success: "%prefix%&aВы успешно телепортированы в &#F8BEFBРайское место&a!"
+  cooldown: "%prefix%&cВы сможете телепортироваться снова через &#F8BEFB{time}&c!"
+  no-permission: "%prefix%&cУ вас нет прав на телепортацию в Райское место!"
 
 help:
   - ""
   - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место"
-  - "&#F8BEFB&l┃ &f/ep tp &8— &#F8BEFBТелепортация на ивент"
-  - "&#F8BEFB&l┃ &f/ep info &8— &#F8BEFBИнформация об ивенте"
-  - "&#F8BEFB&l┃ &f/ep schem &8— &#F8BEFBИнформация о схематике"
-  - "&#F8BEFB&l┃ &f/ep reload &8— &#F8BEFBПерезагрузить плагин &7(admin)"
-  - "&#F8BEFB&l┃ &f/ep paste &8— &#F8BEFBВставить схематику &7(admin)"
-  - "&#F8BEFB&l┃ &f/ep clear &8— &#F8BEFBУдалить схематику &7(admin)"
-  - "&#F8BEFB&l┃ &f/ep setcenter &8— &#F8BEFBУстановить центр &7(admin)"
-  - "&#F8BEFB&l┃ &f/ep setspawn &8— &#F8BEFBУстановить спавн &7(admin)"
-  - "&#F8BEFB&l┃ "
-  - "&7● &fСайт проекта: &#F8BEFBelytrix.pw"
+  - "&#F8BEFB&l┃ &f/paradise tp &8— &#F8BEFBТелепортация в Райское место &8(&7кд: 5 мин&8)"
+  - "&#F8BEFB&l┃ &f/paradise info &8— &#F8BEFBИнформация об ивенте"
+  - "&#F8BEFB&l┃ &f/paradise on &8/ &f/paradise off &8— &#F8BEFBВкл/Выкл Actionbar"
   - ""
 
 info:
   - ""
-  - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBИнформация"
-  - "&#F8BEFB&l┃ &fИвент: &#F8BEFBРайское место"
-  - "&#F8BEFB&l┃ &fКоординаты: &#F8BEFBX: {x}, Y: {y}, Z: {z} &7({world})"
-  - "&#F8BEFB&l┃ &fОсколков активно: &#F8BEFB{active_shards}&7/&#F8BEFB{total_shards}"
-  - "&#F8BEFB&l┃ &fФайл схематики: &#F8BEFB{schem}"
-  - "&#F8BEFB&l┃ "
-  - "&7● &fСайт: &#F8BEFBelytrix.pw &8| &fTelegram: &7t.me/elytrix_ru &8| &fDiscord: &7dsc.gg/elytrix"
-  - ""
-
-schematic:
-  pasting: "%admin_prefix%&7Вставка схематики..."
-  paste-success: "%admin_prefix%&aСхематика успешно вставлена на координаты X=0, Y={y}, Z=0!"
-  paste-failed: "%admin_prefix%&cОшибка при вставке схематики! Проверьте консоль сервера."
-  not-found: "%admin_prefix%&cФайл схематики не найден в папке plugins/ElytrixParadise/schematics/!"
-
-event-start:
-  - ""
   - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место"
-  - "&#F8BEFB&l┃ &fИвент &#F8BEFB«Райское место» &fначался!"
-  - "&#F8BEFB&l┃ &fСердце Рая снова активно."
+  - "&#F8BEFB&l┃ &fЛокация: &#F8BEFBРайское место"
+  - "&#F8BEFB&l┃ &fАктивно осколков: &#F8BEFB{active_shards}&f/&#F8BEFB{total_shards}"
+  - "&#F8BEFB&l┃ &fСтатус: &#F8BEFBАктивно всегда"
   - ""
 
-event-end:
-  - ""
-  - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место"
-  - "&#F8BEFB&l┃ &fИвент &#F8BEFB«Райское место» &fзавершен!"
-  - "&#F8BEFB&l┃ &fСердце Рая истощено &8(&#F8BEFB3 часа&8)&f."
-  - ""
-
+broadcast:
+  start:
+    - ""
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место"
+    - "&#F8BEFB&l┃ &fИвент начался! Осколки и Сердце Рая доступны для добычи."
+    - ""
+  end:
+    - ""
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место"
+    - "&#F8BEFB&l┃ &fИвент завершился."
+    - ""

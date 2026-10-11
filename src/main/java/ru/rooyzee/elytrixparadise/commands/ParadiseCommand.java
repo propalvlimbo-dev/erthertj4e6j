@@ -12,15 +12,15 @@ import ru.rooyzee.elytrixparadise.managers.ConfigManager;
 import ru.rooyzee.elytrixparadise.shards.ParadiseShard;
 import ru.rooyzee.elytrixparadise.utils.ColorUtil;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 public class ParadiseCommand implements CommandExecutor, TabCompleter {
 
     private final Main plugin;
+    private final Map<UUID, Long> tpCooldowns = new ConcurrentHashMap<>();
+    private static final long COOLDOWN_MILLIS = 300_000L; // 5 минут
 
     public ParadiseCommand(Main plugin) {
         this.plugin = plugin;
@@ -68,21 +68,43 @@ public class ParadiseCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        // 3. /ep tp — Телепортация на ивент
+        // 3. /paradise tp (или /ep tp) — Телепортация на ивент с кд 5 минут на X: 0, Z: -3
         if (sub.equals("tp") || sub.equals("teleport")) {
             if (!(sender instanceof Player)) {
                 sender.sendMessage(ColorUtil.colorize(adminPrefix + "&cКоманда доступна только игрокам!"));
                 return true;
             }
             Player player = (Player) sender;
-            if (!player.hasPermission("elytrixparadise.tp") && !player.hasPermission("elytrixparadise.use")) {
-                player.sendMessage(ColorUtil.colorize(adminPrefix + "&cУ вас нет прав на телепортацию в Райское место!"));
-                return true;
+
+            boolean hasBypass = player.hasPermission("elytrixparadise.admin") || player.isOp();
+            if (!hasBypass) {
+                long now = System.currentTimeMillis();
+                Long lastUsed = tpCooldowns.get(player.getUniqueId());
+                if (lastUsed != null && now < lastUsed + COOLDOWN_MILLIS) {
+                    long remainingSeconds = (lastUsed + COOLDOWN_MILLIS - now) / 1000L;
+                    String formattedTime = formatTime(remainingSeconds);
+                    String msg = cm.getMessage("teleport.cooldown");
+                    if (msg == null || msg.isEmpty()) {
+                        msg = playerPrefix + "&cВы сможете телепортироваться снова через &#F8BEFB{time}&c!";
+                    }
+                    player.sendMessage(ColorUtil.colorize(msg.replace("%prefix%", playerPrefix).replace("{time}", formattedTime)));
+                    return true;
+                }
             }
 
+            // Точка спавна: X: 0.5, Z: -3.0
             Location spawn = cm.getSpawnLocation();
             player.teleport(spawn);
-            player.sendMessage(ColorUtil.colorize(adminPrefix + "&aВы успешно телепортированы в &#F8BEFBРайское место&a!"));
+
+            if (!hasBypass) {
+                tpCooldowns.put(player.getUniqueId(), System.currentTimeMillis());
+            }
+
+            String successMsg = cm.getMessage("teleport.success");
+            if (successMsg == null || successMsg.isEmpty()) {
+                successMsg = playerPrefix + "&aВы успешно телепортированы в &#F8BEFBРайское место&a!";
+            }
+            player.sendMessage(ColorUtil.colorize(successMsg.replace("%prefix%", playerPrefix)));
             return true;
         }
 
@@ -238,6 +260,15 @@ public class ParadiseCommand implements CommandExecutor, TabCompleter {
 
         sender.sendMessage(ColorUtil.colorize(adminPrefix + "&cНеизвестная подкоманда. Введите &f/ep help&c."));
         return true;
+    }
+
+    private String formatTime(long seconds) {
+        long min = seconds / 60;
+        long sec = seconds % 60;
+        if (min > 0) {
+            return min + " мин " + (sec < 10 ? "0" : "") + sec + " сек";
+        }
+        return sec + " сек";
     }
 
     @Override

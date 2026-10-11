@@ -3,6 +3,9 @@ package ru.rooyzee.elytrixparadise;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
@@ -26,7 +29,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class Main extends JavaPlugin {
+public class Main extends JavaPlugin implements Listener {
 
     private static Main instance;
 
@@ -69,8 +72,9 @@ public class Main extends JavaPlugin {
         schematicManager = new SchematicManager(this);
         sphereManager = new SphereManager(this);
 
-        // 4. Регистрация слушателей событий (добыча, защита осколков, запрет флая/года, редактор лута)
+        // 4. Регистрация слушателей событий (добыча, защита осколков, запрет флая/года, редактор лута, загрузка миров)
         PluginManager pm = Bukkit.getPluginManager();
+        pm.registerEvents(this, this);
         pm.registerEvents(new ShardMiningListener(this), this);
         pm.registerEvents(new ShardProtectionListener(this), this);
         pm.registerEvents(new ParadiseProtectionListener(this), this);
@@ -88,26 +92,18 @@ public class Main extends JavaPlugin {
                     + center.getBlockX() + ", Y=" + center.getBlockY() + ", Z=" + center.getBlockZ()
                     + " в мире '" + configManager.getWorldName() + "'...");
             schematicManager.pasteSchematic(schemName, center);
-            regionManager.createParadiseRegion(
-                    center,
-                    configManager.getScanRadiusXZ(),
-                    configManager.getScanMinY(),
-                    configManager.getScanMaxY()
-            );
+            ensureRegionCreated();
         } else {
             schematicManager.scanAndRegisterShards();
-            regionManager.createParadiseRegion(
-                    configManager.getCenterLocation(),
-                    configManager.getScanRadiusXZ(),
-                    configManager.getScanMinY(),
-                    configManager.getScanMaxY()
-            );
+            ensureRegionCreated();
         }
 
-        // 7. Инициализация сферы и повторное сканирование осколков через 3 секунды
+        // 7. Повторная гарантия создания региона через 1, 3 и 6 секунд после старта сервера
+        Bukkit.getScheduler().runTaskLater(this, this::ensureRegionCreated, 20L);
         Bukkit.getScheduler().runTaskLater(this, new Runnable() {
             @Override
             public void run() {
+                ensureRegionCreated();
                 if (schematicManager != null) {
                     schematicManager.scanAndRegisterShards();
                 }
@@ -116,13 +112,19 @@ public class Main extends JavaPlugin {
                 }
             }
         }, 60L);
+        Bukkit.getScheduler().runTaskLater(this, this::ensureRegionCreated, 120L);
 
-        // 8. Регистрация команд
+        // 8. Регистрация команд (/elytrixparadise, /ep, /paradise)
         ParadiseCommand cmd = new ParadiseCommand(this);
         PluginCommand pluginCmd = getCommand("elytrixparadise");
         if (pluginCmd != null) {
             pluginCmd.setExecutor(cmd);
             pluginCmd.setTabCompleter(cmd);
+        }
+        PluginCommand paradiseCmd = getCommand("paradise");
+        if (paradiseCmd != null) {
+            paradiseCmd.setExecutor(cmd);
+            paradiseCmd.setTabCompleter(cmd);
         }
 
         // 9. Регистрация PlaceholderAPI расширения
@@ -140,6 +142,24 @@ public class Main extends JavaPlugin {
         getLogger().info("  Папка для лута: plugins/ElytrixParadise/loot/");
         getLogger().info("  Файл схематики: " + configManager.getSchematicFile());
         getLogger().info("=========================================");
+    }
+
+    public void ensureRegionCreated() {
+        if (regionManager != null && configManager != null) {
+            regionManager.createParadiseRegion(
+                    configManager.getCenterLocation(),
+                    configManager.getScanRadiusXZ(),
+                    configManager.getScanMinY(),
+                    configManager.getScanMaxY()
+            );
+        }
+    }
+
+    @EventHandler
+    public void onWorldLoad(WorldLoadEvent event) {
+        if (configManager != null && event.getWorld().getName().equalsIgnoreCase(configManager.getWorldName())) {
+            Bukkit.getScheduler().runTaskLater(this, this::ensureRegionCreated, 20L);
+        }
     }
 
     @Override
@@ -161,7 +181,8 @@ public class Main extends JavaPlugin {
             }
         }
 
-        if (regionManager != null && configManager != null) {
+        // Удалять регион WorldGuard ТОЛЬКО если в конфиге явно включен clear-on-disable
+        if (regionManager != null && configManager != null && configManager.isClearOnDisable()) {
             regionManager.removeParadiseRegion(configManager.getCenterLocation().getWorld());
         }
 

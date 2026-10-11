@@ -1,0 +1,15 @@
+name: ElytrixAirdrop
+version: 1.0.0
+main: ru.rooyzee.elytrixairdrop.Main
+api-version: 1.16
+author: rooyzee
+depend: [WorldEdit, WorldGuard, DecentHolograms]
+softdepend: [PlaceholderAPI, FastAsyncWorldEdit]
+commands:
+  elytrixairdrop:
+    description: Основная команда
+    aliases: [eairdrop, ea]
+    usage: /elytrixairdrop help
+permissions:
+  elytrixairdrop.admin:
+    default: op

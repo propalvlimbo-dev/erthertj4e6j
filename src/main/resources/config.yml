@@ -6,18 +6,17 @@ location:
   spawn:
     x: 0.5
     y: 172.0
-    z: 0.5
+    z: -3.0
     yaw: 0.0
     pitch: 0.0
 
 schematic:
   file: "paradise.schem"
   paste-on-startup: true
-  clear-on-disable: true
+  clear-on-disable: false
   ignore-air: true
   offset-y: 0
 
-# Запрещённые команды в регионе Райского места
 blocked-commands:
   - "setwarp"
   - "warp"
@@ -28,20 +27,9 @@ blocked-commands:
   - "tpaccept"
   - "spawn"
 
-# Эффект утомления (Mining Fatigue) возле активных осколков
 mining-fatigue:
   enabled: true
-  level: 2 # Уровень утомления: 2 (Утомление II) или 3 (Утомление III)
-
-# Настройки Центральной Сферы (Сердце Рая) и 6 цепей
-sphere:
-  max-hp: 200
-  chain-hp: 50
-  cooldown-seconds: 10800 # 3 часа перезарядки после полного истощения
-  jump-boost:
-    enabled: true
-    level: 8 # Прыгучесть 8 уровня (космическая гравитация с мягким падением)
-    room-radius: 15.0 # Радиус купольного зала храма (на 1 блок меньше)
+  level: 2
 
 actionbar:
   radius-xz: 150.0
@@ -61,4 +49,52 @@ shards:
   hit-delay-ms: 800
   exp-min: 2
   exp-max: 6
-  loot: {}
+  loot:
+    diamond:
+      material: DIAMOND
+      min: 1
+      max: 2
+      chance: 25.0
+      name: "&#F8BEFBРайский Алмаз"
+      lore:
+        - "&#F8BEFB&l┃ &fРедкость: &#F8BEFBРедкий"
+        - "&#F8BEFB&l┃ &fИсточник: &#F8BEFBОсколок Рая"
+        - "&#F8BEFB&l┃ "
+        - "&7● &fДобыт в Райском месте"
+    emerald:
+      material: EMERALD
+      min: 1
+      max: 4
+      chance: 40.0
+      name: "&#F8BEFBНебесный Изумруд"
+      lore:
+        - "&#F8BEFB&l┃ &fРедкость: &#F8BEFBОбычный"
+        - "&#F8BEFB&l┃ &fИсточник: &#F8BEFBОсколок Рая"
+        - "&#F8BEFB&l┃ "
+        - "&7● &fДобыт в Райском месте"
+    golden_apple:
+      material: GOLDEN_APPLE
+      min: 1
+      max: 1
+      chance: 15.0
+      name: "&#F8BEFBРайское Яблоко"
+      lore:
+        - "&#F8BEFB&l┃ &fРедкость: &#F8BEFBЭпический"
+        - "&#F8BEFB&l┃ &fЭффект: &#F8BEFBВосстановление"
+        - "&#F8BEFB&l┃ "
+        - "&7● &fДарует небесную защиту"
+    gold:
+      material: GOLD_INGOT
+      min: 2
+      max: 6
+      chance: 60.0
+    iron:
+      material: IRON_INGOT
+      min: 3
+      max: 8
+      chance: 70.0
+    exp:
+      material: EXPERIENCE_BOTTLE
+      min: 2
+      max: 5
+      chance: 50.0
