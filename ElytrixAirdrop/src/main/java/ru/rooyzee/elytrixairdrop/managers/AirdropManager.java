@@ -6,6 +6,7 @@ import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import ru.rooyzee.elytrixairdrop.Main;
 import ru.rooyzee.elytrixairdrop.airdrops.ActiveAirdrop;
@@ -165,7 +166,6 @@ public class AirdropManager {
             World world = Bukkit.getWorld(plugin.getConfigManager().getConfig().getString("world", "world"));
             if (world == null) return false;
 
-            // Loot checks use cache — cheap after first load
             if (id == Airdrop.SKY) {
                 boolean anyLoot = false;
                 for (String r : new String[]{"common", "rare", "mythic", "legendary"}) {
@@ -212,11 +212,10 @@ public class AirdropManager {
             }
 
             String schemName = sec.getString("schematic", "mir.schem");
-            // Schematic is cached after first load
             Clipboard clip = plugin.getSchematicManager().loadSchematic(schemName);
             if (clip == null) return false;
 
-            SchematicManager.PasteResult result = plugin.getSchematicManager().pasteAndBackup(clip, loc);
+            SchematicManager.PasteResult result = plugin.getSchematicManager().pasteAndBackup(clip, loc, radius);
             if (result == null || result.backup == null || result.backup.isEmpty()) {
                 plugin.getLogger().warning("Airdrop " + cfgId + ": paste failed");
                 return false;
@@ -224,7 +223,7 @@ public class AirdropManager {
 
             String regionId = plugin.getRegionManager().createRegion(loc, radius, cfgId);
             if (regionId == null) {
-                plugin.getSchematicManager().restore(result.backup);
+                plugin.getSchematicManager().restoreImmediate(result.backup);
                 return false;
             }
 
@@ -234,8 +233,6 @@ public class AirdropManager {
             );
 
             long endTime = System.currentTimeMillis() + sec.getInt("duration-minutes", 10) * 60_000L;
-
-            // Beacon positions collected during paste — no world scan needed
             List<Location> beacons = result.beacons != null ? result.beacons : Collections.emptyList();
 
             ActiveAirdrop newActive;
@@ -248,7 +245,7 @@ public class AirdropManager {
             } else {
                 plugin.getHologramManager().removeHologram(holoName);
                 plugin.getRegionManager().removeRegion(world, regionId);
-                plugin.getSchematicManager().restore(result.backup);
+                plugin.getSchematicManager().restoreImmediate(result.backup);
                 return false;
             }
 
@@ -287,10 +284,20 @@ public class AirdropManager {
             try { a.onStop(plugin, sec); } catch (Exception e) { e.printStackTrace(); }
 
             plugin.getHologramManager().removeHologram(a.getHologramName());
-            // Remove the protection before restoring the schematic so cleanup cannot leave
-            // an orphaned WorldGuard region when a type-specific cleanup fails.
             plugin.getRegionManager().removeRegion(a.getCenter().getWorld(), a.getRegionId());
-            plugin.getSchematicManager().restore(a.getBackup());
+            plugin.getSchematicManager().restoreImmediate(a.getBackup());
+
+            // Очищаем дропнутые предметы в зоне
+            World w = a.getCenter().getWorld();
+            if (w != null) {
+                for (org.bukkit.entity.Entity ent : w.getEntities()) {
+                    if (ent instanceof Item || ent instanceof org.bukkit.entity.FallingBlock) {
+                        if (ent.getLocation().distanceSquared(a.getCenter()) <= 45 * 45) {
+                            ent.remove();
+                        }
+                    }
+                }
+            }
 
             Map<String, String> vars = new HashMap<>();
             vars.put("type", broadcaster.typeDisplay(a.getType().getId()));

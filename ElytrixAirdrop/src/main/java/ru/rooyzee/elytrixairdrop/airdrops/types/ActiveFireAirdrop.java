@@ -3,7 +3,6 @@ package ru.rooyzee.elytrixairdrop.airdrops.types;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.entity.FallingBlock;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryAction;
@@ -11,7 +10,6 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitTask;
@@ -32,7 +30,7 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
     private static final int NEXT_METEOR_DELAY = 30;
     private static final int END_DELAY_SEC = 60;
     private static final int COOLING_SEC = 30;
-    private static final int METEOR_HEIGHT = 50;
+    private static final int METEOR_HEIGHT = 45;
     private static final int SPHERE_RADIUS = 2;
     private static final int DAMAGE_RADIUS = 10;
     private static final int CRATER_RADIUS = 4;
@@ -47,7 +45,6 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
     private final Map<Location, Map<Integer, ItemStack>> realLootBySlot = new HashMap<>();
     private final Map<Location, SchematicManager.BlockData> allModifiedBlocks = new ConcurrentHashMap<>();
     private final Map<UUID, Long> lootCooldowns = new ConcurrentHashMap<>();
-    private final Set<UUID> trackedDebris = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final Random random = new Random();
 
     private int meteorsSpawned = 0;
@@ -120,18 +117,6 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
         if (waitingTask != null) { try { waitingTask.cancel(); } catch (Exception ignored) {} }
         if (spawnTask != null) { try { spawnTask.cancel(); } catch (Exception ignored) {} }
 
-        World world = getCenter() != null ? getCenter().getWorld() : null;
-        if (world != null) {
-            for (org.bukkit.entity.Entity ent : world.getEntities()) {
-                if (ent instanceof FallingBlock) {
-                    if (ent.getLocation().distanceSquared(getCenter()) <= 100 * 100) {
-                        ent.remove();
-                    }
-                }
-            }
-        }
-        trackedDebris.clear();
-
         for (Inventory inv : chests.values()) {
             for (HumanEntity v : new ArrayList<>(inv.getViewers())) v.closeInventory();
         }
@@ -139,7 +124,7 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
             if (m.holoName != null) plugin.getHologramManager().removeHologram(m.holoName);
         }
 
-        // 1. Восстанавливаем все сохраненные блоки метеоритов и кратеров
+        // 1. Восстанавливаем все локально сохраненные блоки
         for (Map.Entry<Location, SchematicManager.BlockData> e : allModifiedBlocks.entrySet()) {
             restoreBlock(e.getKey(), e.getValue());
         }
@@ -148,32 +133,6 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
         for (Location loc : chests.keySet()) {
             if (loc.getBlock().getType() == Material.ENDER_CHEST) {
                 loc.getBlock().setType(Material.AIR, false);
-            }
-        }
-
-        // 3. Санитарная зачистка зоны радиуса 30 вокруг центра от остаточных магм, обсидиана, сундуков и огня
-        if (world != null) {
-            int cx = getCenter().getBlockX();
-            int cy = getCenter().getBlockY();
-            int cz = getCenter().getBlockZ();
-            int r = 28;
-            for (int dx = -r; dx <= r; dx++) {
-                for (int dz = -r; dz <= r; dz++) {
-                    if (dx * dx + dz * dz > r * r) continue;
-                    for (int dy = -8; dy <= 25; dy++) {
-                        Location chk = new Location(world, cx + dx, cy + dy, cz + dz);
-                        Material mat = chk.getBlock().getType();
-                        if (mat == Material.MAGMA_BLOCK || mat == Material.OBSIDIAN || mat == Material.ENDER_CHEST
-                                || mat == Material.FIRE || mat == Material.SOUL_FIRE || mat == Material.LAVA) {
-                            SchematicManager.BlockData orig = allModifiedBlocks.get(chk);
-                            if (orig != null) {
-                                restoreBlock(chk, orig);
-                            } else {
-                                chk.getBlock().setType(Material.AIR, false);
-                            }
-                        }
-                    }
-                }
             }
         }
 
@@ -277,14 +236,6 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
         if (loc == null || loc.getWorld() == null) return false;
         Location norm = normalize(loc);
         return breakable.contains(norm) && norm.getBlock().getType() == Material.OBSIDIAN;
-    }
-
-    public boolean isTrackedDebris(UUID id) {
-        return trackedDebris.contains(id);
-    }
-
-    public void removeTrackedDebris(UUID id) {
-        trackedDebris.remove(id);
     }
 
     public void onBreakableBroken(Main plugin, Location loc) {
@@ -403,31 +354,21 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
     }
 
     private void animateMeteor(Main plugin, World w, Location target) {
-        List<Vector> offsets = sphereOffsets(SPHERE_RADIUS);
-        Location core = target.clone().add(0.5, SPHERE_RADIUS - 2.5, 0.5);
-        Location start = core.clone().add(0, METEOR_HEIGHT, 0);
-
-        List<FallingBlock> blocks = new ArrayList<>();
-        for (Vector off : offsets) {
-            Location spawn = start.clone().add(off.getX(), off.getY(), off.getZ());
-            FallingBlock fb = w.spawnFallingBlock(spawn, Bukkit.createBlockData(Material.MAGMA_BLOCK));
-            fb.setDropItem(false);
-            fb.setHurtEntities(false);
-            fb.setGravity(false);
-            fb.setInvulnerable(true);
-            fb.setMetadata("elytrix_fire_debris", new FixedMetadataValue(plugin, true));
-            fb.setVelocity(new Vector(0, 0, 0));
-            trackedDebris.add(fb.getUniqueId());
-            blocks.add(fb);
-        }
+        Location start = target.clone().add(0.5, METEOR_HEIGHT, 0.5);
+        Location core = target.clone().add(0.5, SPHERE_RADIUS, 0.5);
 
         final double[] currentY = {start.getY()};
-        final double[] velocity = {0.3};
-        final double gravity = 0.05;
-        final double maxSpeed = 1.0;
+        final double[] velocity = {0.6};
+        final double gravity = 0.08;
+        final double maxSpeed = 1.8;
         final BukkitTask[] holder = new BukkitTask[1];
 
         holder[0] = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            if (plugin.getAirdropManager().getActive() != this) {
+                if (holder[0] != null) holder[0].cancel();
+                return;
+            }
+
             velocity[0] += gravity;
             if (velocity[0] > maxSpeed) velocity[0] = maxSpeed;
             double step = velocity[0];
@@ -436,51 +377,23 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
             if (currentY[0] <= core.getY()) {
                 currentY[0] = core.getY();
                 if (holder[0] != null) holder[0].cancel();
-                for (FallingBlock fb : blocks) {
-                    if (fb != null && fb.isValid()) {
-                        trackedDebris.remove(fb.getUniqueId());
-                        fb.remove();
-                    }
-                }
                 onImpact(plugin, target);
                 return;
             }
 
-            Vector vel = new Vector(0, -step, 0);
-            for (int i = 0; i < blocks.size(); i++) {
-                FallingBlock fb = blocks.get(i);
-                if (fb == null || !fb.isValid()) continue;
-                Vector off = offsets.get(i);
-                Location tp = new Location(w, core.getX() + off.getX() - 0.5,
-                        currentY[0] + off.getY(), core.getZ() + off.getZ() - 0.5);
-                fb.teleport(tp);
-                fb.setVelocity(vel);
-            }
+            Location head = new Location(w, core.getX(), currentY[0], core.getZ());
+            broadcastParticle(w, Particle.FLAME, head, 30, 0.8, 0.8, 0.8, 0.05, null);
+            broadcastParticle(w, Particle.LAVA, head, 10, 0.6, 0.6, 0.6, 0.02, null);
+            broadcastParticle(w, Particle.CAMPFIRE_COSY_SMOKE, head, 15, 0.5, 0.5, 0.5, 0.02, null);
+            broadcastParticle(w, Particle.SMOKE_LARGE, head, 12, 0.7, 0.7, 0.7, 0.03, null);
 
-            Location trail = new Location(w, core.getX(), currentY[0] + 1, core.getZ());
-            broadcastParticle(w, Particle.FLAME, trail, 12, 0.8, 0.4, 0.8, 0.04, null);
-            broadcastParticle(w, Particle.SMOKE_LARGE, trail, 6, 0.8, 0.4, 0.8, 0.02, null);
-            if (((int) currentY[0] & 1) == 0) {
-                broadcastParticle(w, Particle.LAVA, trail, 3, 0.5, 0.3, 0.5, 0, null);
-                double trailDistSq = 60 * 60;
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    if (p.getWorld().equals(w) && p.getLocation().distanceSquared(trail) < trailDistSq) {
-                        p.playSound(trail, Sound.ENTITY_BLAZE_BURN, 0.35f, 0.5f);
-                    }
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                if (p.getWorld().equals(w) && p.getLocation().distanceSquared(head) <= 60 * 60) {
+                    p.playSound(head, Sound.ENTITY_BLAZE_BURN, 0.4f, 0.6f);
                 }
             }
         }, 1L, 1L);
         tasks.add(holder[0]);
-    }
-
-    private List<Vector> sphereOffsets(int r) {
-        List<Vector> out = new ArrayList<>();
-        for (int dx = -r; dx <= r; dx++)
-            for (int dy = -r; dy <= r; dy++)
-                for (int dz = -r; dz <= r; dz++)
-                    if (dx * dx + dy * dy + dz * dz <= r * r + 1)
-                        out.add(new Vector(dx, dy, dz));
-        return out;
     }
 
     private void onImpact(Main plugin, Location target) {
@@ -489,9 +402,9 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
         Location visualCenter = core.clone().add(0.5, 0, 0.5);
 
         broadcastParticle(w, Particle.EXPLOSION_HUGE, visualCenter, 3, 1.5, 0.8, 1.5, 0, null);
-        broadcastParticle(w, Particle.LAVA, visualCenter, 40, 3, 1.5, 3, 0, null);
-        broadcastParticle(w, Particle.FLAME, visualCenter, 60, 4, 1.5, 4, 0.2, null);
-        broadcastParticle(w, Particle.SMOKE_LARGE, visualCenter, 30, 4, 1.5, 4, 0.1, null);
+        broadcastParticle(w, Particle.LAVA, visualCenter, 50, 3, 1.5, 3, 0, null);
+        broadcastParticle(w, Particle.FLAME, visualCenter, 80, 4, 1.5, 4, 0.2, null);
+        broadcastParticle(w, Particle.SMOKE_LARGE, visualCenter, 40, 4, 1.5, 4, 0.1, null);
 
         for (Player p : Bukkit.getOnlinePlayers()) {
             if (!p.getWorld().equals(w)) continue;
@@ -513,7 +426,7 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (plugin.getAirdropManager().getActive() != this) return;
             createCrater(plugin, w, target, m);
-        }, 3L);
+        }, 2L);
 
         phase = "cooling";
 
