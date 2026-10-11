@@ -215,7 +215,7 @@ public class AirdropManager {
             Clipboard clip = plugin.getSchematicManager().loadSchematic(schemName);
             if (clip == null) return false;
 
-            SchematicManager.PasteResult result = plugin.getSchematicManager().pasteAndBackup(clip, loc, radius);
+            SchematicManager.PasteResult result = plugin.getSchematicManager().pasteAndBackup(clip, loc);
             if (result == null || result.backup == null || result.backup.isEmpty()) {
                 plugin.getLogger().warning("Airdrop " + cfgId + ": paste failed");
                 return false;
@@ -285,7 +285,7 @@ public class AirdropManager {
 
             plugin.getHologramManager().removeHologram(a.getHologramName());
             plugin.getRegionManager().removeRegion(a.getCenter().getWorld(), a.getRegionId());
-            plugin.getSchematicManager().restoreImmediate(a.getBackup());
+            plugin.getSchematicManager().restore(a.getBackup());
 
             // Очищаем дропнутые предметы в зоне
             World w = a.getCenter().getWorld();

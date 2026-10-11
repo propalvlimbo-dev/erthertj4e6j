@@ -43,7 +43,6 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
     private final Set<Location> breakable = new HashSet<>();
     private final Map<Location, Inventory> chests = new HashMap<>();
     private final Map<Location, Map<Integer, ItemStack>> realLootBySlot = new HashMap<>();
-    private final Map<Location, SchematicManager.BlockData> allModifiedBlocks = new ConcurrentHashMap<>();
     private final Map<UUID, Long> lootCooldowns = new ConcurrentHashMap<>();
     private final Random random = new Random();
 
@@ -124,12 +123,6 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
             if (m.holoName != null) plugin.getHologramManager().removeHologram(m.holoName);
         }
 
-        // 1. Восстанавливаем все локально сохраненные блоки
-        for (Map.Entry<Location, SchematicManager.BlockData> e : allModifiedBlocks.entrySet()) {
-            restoreBlock(e.getKey(), e.getValue());
-        }
-
-        // 2. Зачищаем эндер-сундуки
         for (Location loc : chests.keySet()) {
             if (loc.getBlock().getType() == Material.ENDER_CHEST) {
                 loc.getBlock().setType(Material.AIR, false);
@@ -139,7 +132,6 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
         meteors.clear();
         chests.clear();
         breakable.clear();
-        allModifiedBlocks.clear();
         realLootBySlot.clear();
         lootCooldowns.clear();
     }
@@ -147,9 +139,10 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
     private void backupOriginalBlock(Location loc) {
         if (loc == null || loc.getWorld() == null) return;
         Location norm = normalize(loc);
-        if (!allModifiedBlocks.containsKey(norm)) {
+        Map<Location, SchematicManager.BlockData> backup = getBackup();
+        if (backup != null && !backup.containsKey(norm)) {
             Block b = norm.getBlock();
-            allModifiedBlocks.put(norm, new SchematicManager.BlockData(b.getType(), b.getBlockData().getAsString()));
+            backup.put(norm, new SchematicManager.BlockData(b.getType(), b.getBlockData().getAsString()));
         }
     }
 
@@ -227,7 +220,7 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
         if (loc == null) return false;
         Location norm = normalize(loc);
         if (breakable.contains(norm)) return false;
-        if (allModifiedBlocks.containsKey(norm)) return true;
+        if (getBackup() != null && getBackup().containsKey(norm)) return true;
         if (chests.containsKey(norm)) return true;
         return super.isProtectedBlock(loc);
     }
@@ -248,7 +241,7 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
 
     public boolean isMeteorArea(Location loc) {
         Location norm = normalize(loc);
-        if (allModifiedBlocks.containsKey(norm)) return true;
+        if (getBackup() != null && getBackup().containsKey(norm)) return true;
         if (chests.containsKey(norm)) return true;
         return false;
     }
@@ -261,14 +254,17 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
     }
 
     private void cleanupMeteor(Main plugin, Meteor meteor) {
+        Map<Location, SchematicManager.BlockData> backup = getBackup();
         if (meteor.chestLoc != null) {
             Inventory inv = chests.remove(meteor.chestLoc);
             realLootBySlot.remove(meteor.chestLoc);
             if (inv != null) for (HumanEntity v : new ArrayList<>(inv.getViewers())) v.closeInventory();
-            SchematicManager.BlockData d = allModifiedBlocks.get(meteor.chestLoc);
-            if (d != null) restoreBlock(meteor.chestLoc, d);
-            else if (meteor.chestLoc.getBlock().getType() == Material.ENDER_CHEST) {
-                meteor.chestLoc.getBlock().setType(Material.AIR, false);
+            if (backup != null) {
+                SchematicManager.BlockData d = backup.get(meteor.chestLoc);
+                if (d != null) restoreBlock(meteor.chestLoc, d);
+                else if (meteor.chestLoc.getBlock().getType() == Material.ENDER_CHEST) {
+                    meteor.chestLoc.getBlock().setType(Material.AIR, false);
+                }
             }
         }
         if (meteor.holoName != null) {
@@ -277,13 +273,17 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
         }
         for (Location k : new HashSet<>(meteor.blocks)) {
             breakable.remove(k);
-            SchematicManager.BlockData d = allModifiedBlocks.get(k);
-            if (d != null) restoreBlock(k, d);
-            else k.getBlock().setType(Material.AIR, false);
+            if (backup != null) {
+                SchematicManager.BlockData d = backup.get(k);
+                if (d != null) restoreBlock(k, d);
+                else k.getBlock().setType(Material.AIR, false);
+            }
         }
         for (Location k : new HashSet<>(meteor.craterBlocks)) {
-            SchematicManager.BlockData d = allModifiedBlocks.get(k);
-            if (d != null) restoreBlock(k, d);
+            if (backup != null) {
+                SchematicManager.BlockData d = backup.get(k);
+                if (d != null) restoreBlock(k, d);
+            }
         }
         meteors.remove(meteor.center);
     }
