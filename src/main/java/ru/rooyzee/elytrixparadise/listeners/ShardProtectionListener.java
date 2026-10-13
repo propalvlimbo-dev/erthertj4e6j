@@ -26,10 +26,9 @@ public class ShardProtectionListener implements Listener {
         Iterator<Block> it = event.blockList().iterator();
         while (it.hasNext()) {
             Block b = it.next();
-            if (b.getType() == Material.RED_GLAZED_TERRACOTTA || b.getType() == Material.GRAY_GLAZED_TERRACOTTA) {
-                if (plugin.getShardManager().getShard(b.getLocation()) != null) {
-                    it.remove();
-                }
+            if (plugin.getRegionManager().isInParadiseRegion(b.getLocation())
+                    && plugin.getShardManager().getShard(b.getLocation()) != null) {
+                it.remove();
             }
         }
     }
@@ -39,10 +38,9 @@ public class ShardProtectionListener implements Listener {
         Iterator<Block> it = event.blockList().iterator();
         while (it.hasNext()) {
             Block b = it.next();
-            if (b.getType() == Material.RED_GLAZED_TERRACOTTA || b.getType() == Material.GRAY_GLAZED_TERRACOTTA) {
-                if (plugin.getShardManager().getShard(b.getLocation()) != null) {
-                    it.remove();
-                }
+            if (plugin.getRegionManager().isInParadiseRegion(b.getLocation())
+                    && plugin.getShardManager().getShard(b.getLocation()) != null) {
+                it.remove();
             }
         }
     }
@@ -50,11 +48,10 @@ public class ShardProtectionListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onPistonExtend(BlockPistonExtendEvent event) {
         for (Block b : event.getBlocks()) {
-            if (b.getType() == Material.RED_GLAZED_TERRACOTTA || b.getType() == Material.GRAY_GLAZED_TERRACOTTA) {
-                if (plugin.getShardManager().getShard(b.getLocation()) != null) {
-                    event.setCancelled(true);
-                    return;
-                }
+            if (plugin.getRegionManager().isInParadiseRegion(b.getLocation())
+                    && plugin.getShardManager().getShard(b.getLocation()) != null) {
+                event.setCancelled(true);
+                return;
             }
         }
     }
@@ -62,11 +59,10 @@ public class ShardProtectionListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onPistonRetract(BlockPistonRetractEvent event) {
         for (Block b : event.getBlocks()) {
-            if (b.getType() == Material.RED_GLAZED_TERRACOTTA || b.getType() == Material.GRAY_GLAZED_TERRACOTTA) {
-                if (plugin.getShardManager().getShard(b.getLocation()) != null) {
-                    event.setCancelled(true);
-                    return;
-                }
+            if (plugin.getRegionManager().isInParadiseRegion(b.getLocation())
+                    && plugin.getShardManager().getShard(b.getLocation()) != null) {
+                event.setCancelled(true);
+                return;
             }
         }
     }

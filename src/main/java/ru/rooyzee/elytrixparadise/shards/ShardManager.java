@@ -57,6 +57,11 @@ public class ShardManager {
     public ParadiseShard registerShard(Location loc) {
         if (loc == null || loc.getWorld() == null) return null;
 
+        // Строгая проверка: регистрировать осколки ТОЛЬКО в пределах региона Райского места
+        if (!plugin.getRegionManager().isInParadiseRegion(loc)) {
+            return null;
+        }
+
         // Защита: не регистрировать осколок на сфере или центральном алтаре
         Location center = plugin.getConfigManager().getCenterLocation();
         if (center != null && loc.getWorld().equals(center.getWorld())) {
@@ -244,7 +249,7 @@ public class ShardManager {
         shard.setState(ParadiseShard.ShardState.COOLDOWN);
         shard.setCooldownRemaining(plugin.getConfigManager().getShardCooldownSeconds());
         shard.resetExplosionChance(plugin.getConfigManager().getShardBaseExplosionChance());
-        shard.setShieldUntil(System.currentTimeMillis() + 3000L); // 3 секунды барьера
+        shard.setShieldUntil(System.currentTimeMillis() + 3000L);
 
         world.spawnParticle(Particle.EXPLOSION_HUGE, center, 2);
         world.spawnParticle(Particle.FLASH, center, 2);

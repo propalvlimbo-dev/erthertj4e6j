@@ -29,17 +29,12 @@ public class ShardMiningListener implements Listener {
 
     private boolean isShardBlock(Block block) {
         if (block == null) return false;
-        Material type = block.getType();
-        if (type == Material.RED_GLAZED_TERRACOTTA || type == Material.GRAY_GLAZED_TERRACOTTA) {
-            return true;
+        if (!plugin.getRegionManager().isInParadiseRegion(block.getLocation())) {
+            return false;
         }
         return plugin.getShardManager().getShard(block.getLocation()) != null;
     }
 
-    /**
-     * Предотвращение мгновенного разрушения блоков в креативе при ЛКМ.
-     * Урон и добыча на ЛКМ НЕ происходят — добыча строго при полном ломании!
-     */
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (event.getAction() == Action.LEFT_CLICK_BLOCK && event.getClickedBlock() != null) {
@@ -91,9 +86,6 @@ public class ShardMiningListener implements Listener {
         }
     }
 
-    /**
-     * ТОЛЬКО полное вскапывание/ломание (BlockBreakEvent) засчитывает добычу и наносит урон!
-     */
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onBlockBreak(BlockBreakEvent event) {
         final Block block = event.getBlock();
@@ -121,29 +113,26 @@ public class ShardMiningListener implements Listener {
             return;
         }
 
-        // 3. Полное ломание Осколка Рая
+        // 3. Полное ломание Осколка Рая (только зарегистрированного в регионе Рая!)
         if (isShardBlock(block)) {
             event.setCancelled(true);
             event.setDropItems(false);
             event.setExpToDrop(0);
 
             ParadiseShard shard = plugin.getShardManager().getShard(block.getLocation());
-            if (shard == null) {
-                shard = plugin.getShardManager().registerShard(block.getLocation());
-            }
-
             if (shard != null) {
                 plugin.getShardManager().handleShardMined(player, block.getLocation());
+                resendShardBlock(block);
             }
-
-            resendShardBlock(block);
         }
     }
 
     private void resendShardBlock(final Block block) {
         final org.bukkit.Location loc = block.getLocation();
         final ParadiseShard s = plugin.getShardManager().getShard(loc);
-        final Material targetMat = (s != null && s.getState() == ParadiseShard.ShardState.COOLDOWN)
+        if (s == null) return;
+
+        final Material targetMat = (s.getState() == ParadiseShard.ShardState.COOLDOWN)
                 ? Material.GRAY_GLAZED_TERRACOTTA
                 : Material.RED_GLAZED_TERRACOTTA;
 
@@ -173,13 +162,9 @@ public class ShardMiningListener implements Listener {
     public void onBlockDamage(BlockDamageEvent event) {
         Block block = event.getBlock();
         Player player = event.getPlayer();
-        SphereManager sm = plugin.getSphereManager();
 
         if (isShardBlock(block)) {
             ParadiseShard shard = plugin.getShardManager().getShard(block.getLocation());
-            if (shard == null) {
-                shard = plugin.getShardManager().registerShard(block.getLocation());
-            }
             if (shard != null && shard.getState() == ParadiseShard.ShardState.COOLDOWN) {
                 String prefix = plugin.getConfigManager().getAdminPrefix();
                 player.sendMessage(ColorUtil.colorize(prefix + "&cОсколок находится на перезарядке! &fОсталось: &#F8BEFB"
