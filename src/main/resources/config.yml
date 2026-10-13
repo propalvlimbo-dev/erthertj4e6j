@@ -1,57 +1,100 @@
-world: "world"
+location:
+  world: "world"
+  x: 0
+  y: 170
+  z: 0
+  spawn:
+    x: 0.5
+    y: 172.0
+    z: -3.0
+    yaw: 0.0
+    pitch: 0.0
 
-spawn:
-  min-x: -1000
-  max-x: 1000
-  min-z: -1000
-  max-z: 1000
+schematic:
+  file: "paradise.schem"
+  paste-on-startup: true
+  clear-on-disable: false
+  ignore-air: true
+  offset-y: 0
 
-airdrops:
-  peaceful:
-    enabled: true
-    cooldown-minutes: 30
-    duration-minutes: 10
-    activation-minutes: 5
-    region-radius: 30
-    schematic: "mir.schem"
-    display-name: "&#208BFBМирный"
-    hologram:
-      - "&f☁ &#F8BEFBᴇʟʏᴛʀɪx"
-      - ""
-      - "&#208BFB☁ Мирный аирдроп"
-      - "&7●&f PvP отключено в радиусе 30 блоков"
-      - ""
-      - "%status%"
-  fire:
-    enabled: true
-    cooldown-minutes: 30
-    duration-minutes: 30
-    region-radius: 35
-    schematic: "fire.schem"
-    display-name: "&cОгненный"
-    loot-min-items: 10
-    loot-max-items: 20
-    hologram:
-      - "&f☁ &#F8BEFBᴇʟʏᴛʀɪx"
-      - ""
-      - "&#F8BEFBОгненный аирдроп"
-      - "&7● &fОпасность: &c5/5"
-      - "&7● &fИссушение в зоне"
-      - "%status%"
-  sky:
-    enabled: true
-    cooldown-minutes: 40
-    duration-minutes: 20
-    region-radius: 50
-    schematic: "sky.schem"
-    min-above-ground: 35
-    max-above-ground: 50
-    display-name: "&bВоздушный"
-    hologram:
-      - "&f☁ &#F8BEFBᴇʟʏᴛʀɪx"
-      - ""
-      - "&bВоздушный аирдроп"
-      - "&7● &f5 шалкеров разной редкости"
-      - "&7● &fPvP включено"
-      - ""
-      - "%status%"
+blocked-commands:
+  - "setwarp"
+  - "warp"
+  - "sethome"
+  - "home"
+  - "tp"
+  - "tpa"
+  - "tpaccept"
+  - "spawn"
+
+mining-fatigue:
+  enabled: true
+  level: 2
+
+actionbar:
+  radius-xz: 150.0
+  min-y: 0.0
+  max-y: 256.0
+
+shards:
+  scan-radius-xz: 150
+  scan-min-y: 0
+  scan-max-y: 255
+  cooldown-seconds: 600
+  base-explosion-chance: 2.0
+  chance-increase-per-hit: 1.5
+  max-explosion-chance: 50.0
+  explosion-damage: 24.0
+  explosion-radius: 5.5
+  hit-delay-ms: 800
+  exp-min: 2
+  exp-max: 6
+  loot:
+    diamond:
+      material: DIAMOND
+      min: 1
+      max: 2
+      chance: 25.0
+      name: "&#F8BEFBРайский Алмаз"
+      lore:
+        - "&#F8BEFB&l┃ &fРедкость: &#F8BEFBРедкий"
+        - "&#F8BEFB&l┃ &fИсточник: &#F8BEFBОсколок Рая"
+        - "&#F8BEFB&l┃ "
+        - "&7● &fДобыт в Райском месте"
+    emerald:
+      material: EMERALD
+      min: 1
+      max: 4
+      chance: 40.0
+      name: "&#F8BEFBНебесный Изумруд"
+      lore:
+        - "&#F8BEFB&l┃ &fРедкость: &#F8BEFBОбычный"
+        - "&#F8BEFB&l┃ &fИсточник: &#F8BEFBОсколок Рая"
+        - "&#F8BEFB&l┃ "
+        - "&7● &fДобыт в Райском месте"
+    golden_apple:
+      material: GOLDEN_APPLE
+      min: 1
+      max: 1
+      chance: 15.0
+      name: "&#F8BEFBРайское Яблоко"
+      lore:
+        - "&#F8BEFB&l┃ &fРедкость: &#F8BEFBЭпический"
+        - "&#F8BEFB&l┃ &fЭффект: &#F8BEFBВосстановление"
+        - "&#F8BEFB&l┃ "
+        - "&7● &fДарует небесную защиту"
+    gold:
+      material: GOLD_INGOT
+      min: 2
+      max: 6
+      chance: 60.0
+    iron:
+      material: IRON_INGOT
+      min: 3
+      max: 8
+      chance: 70.0
+    exp:
+      material: EXPERIENCE_BOTTLE
+      min: 2
+      max: 5
+      chance: 50.0

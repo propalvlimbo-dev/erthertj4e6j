@@ -1,78 +1,36 @@
-prefix: "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» "
+prefix:
+  admin: "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» "
+  player: "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» "
 
-no-permission: "%prefix%&cУ вас нет прав на использование этой команды"
-only-player: "%prefix%&cКоманда доступна только игрокам"
-unknown-command: "%prefix%&cНеизвестная команда. Используйте /elytrixairdrop help"
-reload-success: "%prefix%&aПлагин успешно перезагружен"
+teleport:
+  success: "%prefix%&aВы успешно телепортированы в &#F8BEFBРайское место&a!"
+  cooldown: "%prefix%&cВы сможете телепортироваться снова через &#F8BEFB{time}&c!"
+  no-permission: "%prefix%&cУ вас нет прав на телепортацию в Райское место!"
 
 help:
   - ""
-  - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBКоманды"
-  - "&#F8BEFB&l┃ &f/ea help &8— &#F8BEFBсписок команд"
-  - "&#F8BEFB&l┃ &f/ea reload &8— &#F8BEFBперезагрузка"
-  - "&#F8BEFB&l┃ &f/ea menu &8— &#F8BEFBменю настроек"
-  - "&#F8BEFB&l┃ &f/ea start [id] &8— &#F8BEFBзапустить ивент"
-  - "&#F8BEFB&l┃ &f/ea stop &8— &#F8BEFBзавершить ивент"
-  - "&#F8BEFB&l┃ &f/ea tp &8— &#F8BEFBтелепорт к ивенту"
-  - "&#F8BEFB&l┃ &f/ea info &8— &#F8BEFBинформация"
+  - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место"
+  - "&#F8BEFB&l┃ &f/paradise tp &8— &#F8BEFBТелепортация в Райское место &8(&7кд: 5 мин&8)"
+  - "&#F8BEFB&l┃ &f/paradise info &8— &#F8BEFBИнформация об ивенте"
+  - "&#F8BEFB&l┃ &f/paradise on &8/ &f/paradise off &8— &#F8BEFBВкл/Выкл Actionbar"
   - ""
 
-airdrop:
-  no-active: "%prefix%&cСейчас нет активных аирдропов"
-  already-active: "%prefix%&cАирдроп уже активен"
-  not-found: "%prefix%&cАирдроп с таким ID не найден"
-  started: "%prefix%&aАирдроп &#F8BEFB{type} &aуспешно запущен"
-  stopped: "%prefix%&aАирдроп успешно завершён"
-  tp-success: "%prefix%&aВы телепортированы к аирдропу"
-  spawn-failed: "%prefix%&cНе удалось найти подходящее место для спавна"
-  pvp-blocked: "%prefix%&cPvP отключено в зоне аирдропа"
-  looted: "%prefix%&aВы забрали лут из аирдропа"
-  activated: "%prefix%&aВы активировали аирдроп. Откроется через &#F8BEFB{time}"
-  activating-by: "%prefix%&7Аирдроп откроется через &#F8BEFB{time}"
-  revealing: "%prefix%&7Лут загружается..."
-  too-far: "%prefix%&cПодойдите ближе к сундуку"
-  already-looted: "%prefix%&cАирдроп уже забран"
-  no-fly: "%prefix%&cПолёт запрещён в зоне аирдропа"
-  no-teleport: "%prefix%&cТелепортация запрещена в зоне аирдропа"
-  info:
-    - ""
-    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBТекущий аирдроп"
-    - "&#F8BEFB&l┃ &fТип: &#F8BEFB{type}"
-    - "&#F8BEFB&l┃ &fКоординаты: &#F8BEFB{x}, {y}, {z}"
-    - "&#F8BEFB&l┃ &fОсталось: &#F8BEFB{time}"
-    - ""
+info:
+  - ""
+  - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место"
+  - "&#F8BEFB&l┃ &fЛокация: &#F8BEFBРайское место"
+  - "&#F8BEFB&l┃ &fАктивно осколков: &#F8BEFB{active_shards}&f/&#F8BEFB{total_shards}"
+  - "&#F8BEFB&l┃ &fСтатус: &#F8BEFBАктивно всегда"
+  - ""
 
 broadcast:
-  spawn:
+  start:
     - ""
-    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBСпавн аирдропа"
-    - "&#F8BEFB&l┃ &fТип: &#F8BEFB{type}"
-    - "&#F8BEFB&l┃ &fКоординаты: &#F8BEFB{x}, {y}, {z}"
-    - "&#F8BEFB&l┃ &fИсчезнет через: &#F8BEFB{duration}"
-    - ""
-  activated:
-    - ""
-    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBАирдроп активирован"
-    - "&#F8BEFB&l┃ &fАктивировал: &#F8BEFB{player}"
-    - "&#F8BEFB&l┃ &fОткроется через: &#F8BEFB{time}"
-    - ""
-  unlocked:
-    - ""
-    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBАирдроп открывается"
-    - "&#F8BEFB&l┃ &fЛут загружается, готовьтесь"
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место"
+    - "&#F8BEFB&l┃ &fИвент начался! Осколки и Сердце Рая доступны для добычи."
     - ""
   end:
     - ""
-    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBАирдроп завершён"
-    - "&#F8BEFB&l┃ &fТип: &#F8BEFB{type}"
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место"
+    - "&#F8BEFB&l┃ &fИвент завершился."
     - ""
-  looted:
-    - ""
-    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBАирдроп забран"
-    - "&#F8BEFB&l┃ &fИгрок: &#F8BEFB{player}"
-    - "&#F8BEFB&l┃ &fТип: &#F8BEFB{type}"
-    - ""
-
-placeholder:
-  no-active: "&7до спавна: &#F8BEFB{time}"
-  active: "&aактивен: &#F8BEFB{type}"

@@ -1,0 +1,57 @@
+world: "world"
+
+spawn:
+  min-x: -1000
+  max-x: 1000
+  min-z: -1000
+  max-z: 1000
+
+airdrops:
+  peaceful:
+    enabled: true
+    cooldown-minutes: 30
+    duration-minutes: 10
+    activation-minutes: 5
+    region-radius: 30
+    schematic: "mir.schem"
+    display-name: "&#208BFBМирный"
+    hologram:
+      - "&f☁ &#F8BEFBᴇʟʏᴛʀɪx"
+      - ""
+      - "&#208BFB☁ Мирный аирдроп"
+      - "&7●&f PvP отключено в радиусе 30 блоков"
+      - ""
+      - "%status%"
+  fire:
+    enabled: true
+    cooldown-minutes: 30
+    duration-minutes: 30
+    region-radius: 35
+    schematic: "fire.schem"
+    display-name: "&cОгненный"
+    loot-min-items: 10
+    loot-max-items: 20
+    hologram:
+      - "&f☁ &#F8BEFBᴇʟʏᴛʀɪx"
+      - ""
+      - "&#F8BEFBОгненный аирдроп"
+      - "&7● &fОпасность: &c5/5"
+      - "&7● &fИссушение в зоне"
+      - "%status%"
+  sky:
+    enabled: true
+    cooldown-minutes: 40
+    duration-minutes: 20
+    region-radius: 50
+    schematic: "sky.schem"
+    min-above-ground: 35
+    max-above-ground: 50
+    display-name: "&bВоздушный"
+    hologram:
+      - "&f☁ &#F8BEFBᴇʟʏᴛʀɪx"
+      - ""
+      - "&bВоздушный аирдроп"
+      - "&7● &f5 шалкеров разной редкости"
+      - "&7● &fPvP включено"
+      - ""
+      - "%status%"
