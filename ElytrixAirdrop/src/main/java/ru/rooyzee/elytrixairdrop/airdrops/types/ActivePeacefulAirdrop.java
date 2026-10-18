@@ -71,7 +71,7 @@ private final long spawnTime = System.currentTimeMillis();
                 new SchematicManager.BlockData(chestBlock.getType(), chestBlock.getBlockData().getAsString()));
         chestBlock.setType(Material.CHEST, false);
 
-        List<ItemStack> pool = new ArrayList<>(plugin.getAirdropManager().getLootFileService().load("peaceful"));
+        List<ItemStack> pool = new ArrayList<>(plugin.getAirdropManager().getLootFileService().rollDrops("peaceful", Bukkit.getOnlinePlayers().size()));
         pendingLoot.clear();
         if (pool.isEmpty()) return;
         Random r = new Random();

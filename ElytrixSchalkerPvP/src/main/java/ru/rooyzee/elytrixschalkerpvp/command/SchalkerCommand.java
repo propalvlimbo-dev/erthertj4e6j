@@ -51,6 +51,7 @@ public class SchalkerCommand implements CommandExecutor {
             case "remove":
                 handleRemove(player, cm);
                 break;
+            case "loot":
             case "edit":
                 handleEdit(player, args, cm);
                 break;
@@ -104,18 +105,14 @@ public class SchalkerCommand implements CommandExecutor {
     }
 
     private void handleEdit(Player player, String[] args, ConfigManager cm) {
-        if (args.length < 2) {
-            player.sendMessage(ColorUtil.colorize(cm.getMessage("invalid-rarity")));
-            return;
+        Rarity rarity = Rarity.COMMON;
+        if (args.length >= 2) {
+            rarity = Rarity.fromString(args[1]);
+            if (rarity == null) {
+                rarity = Rarity.COMMON;
+            }
         }
-
-        Rarity rarity = Rarity.fromString(args[1]);
-        if (rarity == null) {
-            player.sendMessage(ColorUtil.colorize(cm.getMessage("invalid-rarity")));
-            return;
-        }
-
-        LootEditGUI.openEditor(plugin, player, rarity);
+        LootEditGUI.openEditor(plugin, player, rarity, 1);
     }
 
     private void handleReload(Player player, ConfigManager cm) {

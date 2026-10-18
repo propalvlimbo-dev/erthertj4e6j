@@ -10,88 +10,143 @@ import ru.rooyzee.elytrixairdrop.Main;
 import ru.rooyzee.elytrixairdrop.gui.holders.LootEditorHolder;
 import ru.rooyzee.elytrixairdrop.utils.ColorUtil;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 public class LootEditorMenu {
 
-    public static final int SLOTS_PER_PAGE = 45;
-    public static final String TITLE_PREFIX = ColorUtil.colorize("&#F8BEFBᴀɪʀᴅʀᴏᴘ &7» &fЛут ");
-
     private final Main plugin;
     private final String id;
-    private final int page;
-    private List<ItemStack> cachedLoot;
+    private final String displayTitle;
 
-    public LootEditorMenu(Main plugin, String id, int page) {
+    public LootEditorMenu(Main plugin, String id) {
+        this(plugin, id, resolveTitle(id));
+    }
+
+    public LootEditorMenu(Main plugin, String id, String displayTitle) {
         this.plugin = plugin;
         this.id = id;
-        this.page = Math.max(0, page);
+        this.displayTitle = displayTitle;
     }
 
-    public String getId() { return id; }
-    public int getPage() { return page; }
-
-    private List<ItemStack> loot() {
-        if (cachedLoot == null) cachedLoot = plugin.getAirdropManager().getLootFileService().load(id);
-        return cachedLoot;
+    private static String resolveTitle(String id) {
+        if ("peaceful".equalsIgnoreCase(id)) return "Мирный аирдроп";
+        if ("fire".equalsIgnoreCase(id)) return "Огненный аирдроп";
+        if ("sky".equalsIgnoreCase(id)) return "Небесный аирдроп";
+        if (id.startsWith("sky_")) return "Небесный (" + id.replace("sky_", "") + ")";
+        return id;
     }
 
-    /**
-     * Last page index that already has (or can hold) content.
-     * When loot exactly fills N pages, one extra empty page is allowed for adding more.
-     */
-    public int getMaxPages() {
-        int size = loot().size();
-        if (size <= 0) return 0;
-        int lastContentPage = (size - 1) / SLOTS_PER_PAGE;
-        // full last page → allow one empty page after it
-        if (size % SLOTS_PER_PAGE == 0) {
-            return lastContentPage + 1;
-        }
-        return lastContentPage;
-    }
+    public void open(Player player, int page) {
+        if (page < 1) page = 1;
+        if (page > 4) page = 4;
 
-    public void open(Player p) {
-        List<ItemStack> l = loot();
-        int start = page * SLOTS_PER_PAGE;
-        int end = Math.min(start + SLOTS_PER_PAGE, l.size());
-
-        int titleMax = Math.max(getMaxPages(), page) + 1;
-        Inventory inv = Bukkit.createInventory(
-                new LootEditorHolder(id, page), 54,
-                TITLE_PREFIX + (page + 1) + "/" + titleMax
-        );
-
-        for (int i = 0; i < SLOTS_PER_PAGE; i++) {
-            int idx = start + i;
-            if (idx >= end) break;
-            inv.setItem(i, l.get(idx).clone());
+        String pageName;
+        String chanceDesc;
+        switch (page) {
+            case 1:
+                pageName = "&#F8BEFBОбычный лут &8(Стр. 1/4)";
+                chanceDesc = "&7Шанс выпадения: &aВысокий";
+                break;
+            case 2:
+                pageName = "&#F8BEFBРедкий лут &8(Стр. 2/4)";
+                chanceDesc = "&7Шанс выпадения: &#F8BEFBСредний";
+                break;
+            case 3:
+                pageName = "&#F8BEFBЭпический лут &8(Стр. 3/4)";
+                chanceDesc = "&7Шанс выпадения: &dНизкий";
+                break;
+            default:
+                pageName = "&#F8BEFBЛегендарный лут &8(Стр. 4/4)";
+                chanceDesc = "&7Шанс выпадения: &6Очень редкий";
+                break;
         }
 
-        if (page > 0) inv.setItem(45, named(Material.ARROW, "&f← Предыдущая", "prev"));
-        else inv.setItem(45, named(Material.GRAY_DYE, "&8—", null));
+        String title = ColorUtil.colorize("&8[" + displayTitle + "&8] " + pageName);
+        if (title.length() > 32) {
+            title = ColorUtil.colorize(displayTitle + " &8» &fСтр. " + page + "/4");
+        }
 
-        // Always allow going to the next page so loot can grow beyond one page.
-        // If the current page is the last known one, show "+" as a hint that a new page will be created.
-        if (page < getMaxPages()) {
-            inv.setItem(53, named(Material.ARROW, "&fСледующая →", "next"));
+        LootEditorHolder holder = new LootEditorHolder(id, displayTitle, page);
+        Inventory inv = Bukkit.createInventory(holder, 54, title);
+        holder.setInventory(inv);
+
+        // 45 слотов предметов
+        List<ItemStack> items = plugin.getAirdropManager().getLootFileService().getItems(id, page);
+        for (int i = 0; i < Math.min(45, items.size()); i++) {
+            ItemStack is = items.get(i);
+            if (is != null && is.getType() != Material.AIR) {
+                inv.setItem(i, is.clone());
+            }
+        }
+
+        // Нижняя панель управления (45..53)
+        ItemStack filler = createButton(Material.BLACK_STAINED_GLASS_PANE, " ", Collections.emptyList());
+        for (int i = 45; i < 54; i++) {
+            inv.setItem(i, filler);
+        }
+
+        // Предыдущая страница (45)
+        if (page > 1) {
+            inv.setItem(45, createButton(Material.ARROW, "&#F8BEFB◀ Предыдущая страница",
+                    Arrays.asList("&7Перейти на страницу " + (page - 1))));
         } else {
-            inv.setItem(53, named(Material.LIME_DYE, "&a+ Новая страница", "next"));
+            inv.setItem(45, createButton(Material.BARRIER, "&7Первая страница", Collections.emptyList()));
         }
 
-        inv.setItem(49, named(Material.EMERALD, "&aСохранить", "save"));
-        inv.setItem(48, named(Material.RED_DYE, "&cНазад", "back"));
+        // Информация о тире (47)
+        inv.setItem(47, createButton(Material.BOOK, "&#F8BEFBИнформация о странице",
+                Arrays.asList(
+                        "&fКатегория: " + pageName,
+                        chanceDesc,
+                        "",
+                        "&7Положите в слоты выше любые предметы,",
+                        "&7которые должны выпадать из этой категории!"
+                )));
 
-        p.openInventory(inv);
+        // Сохранить (49)
+        inv.setItem(49, createButton(Material.NETHER_STAR, "&a&l★ Сохранить изменения",
+                Arrays.asList(
+                        "&7Нажмите, чтобы сохранить и применить",
+                        "&7все предметы на этой странице!"
+                )));
+
+        // Следующая страница (53)
+        if (page < 4) {
+            inv.setItem(53, createButton(Material.ARROW, "&#F8BEFBСледующая страница ▶",
+                    Arrays.asList("&7Перейти на страницу " + (page + 1))));
+        } else {
+            inv.setItem(53, createButton(Material.BARRIER, "&7Последняя страница", Collections.emptyList()));
+        }
+
+        player.openInventory(inv);
     }
 
-    private ItemStack named(Material m, String name, String key) {
-        ItemStack it = new ItemStack(m);
-        ItemMeta meta = it.getItemMeta();
-        meta.setDisplayName(ColorUtil.colorize(name));
-        if (key != null) meta.setLore(Collections.singletonList(ColorUtil.colorize("&8key:" + key)));
-        it.setItemMeta(meta);
-        return it;
+    public void saveFromInventory(Inventory inv, int page) {
+        List<ItemStack> items = new ArrayList<>();
+        for (int i = 0; i < 45; i++) {
+            ItemStack is = inv.getItem(i);
+            if (is != null && is.getType() != Material.AIR) {
+                items.add(is.clone());
+            }
+        }
+        plugin.getAirdropManager().getLootFileService().setItems(id, page, items);
+    }
+
+    private ItemStack createButton(Material mat, String name, List<String> lore) {
+        ItemStack is = new ItemStack(mat);
+        ItemMeta meta = is.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(ColorUtil.colorize(name));
+            List<String> coloredLore = new ArrayList<>();
+            for (String l : lore) {
+                coloredLore.add(ColorUtil.colorize(l));
+            }
+            meta.setLore(coloredLore);
+            is.setItemMeta(meta);
+        }
+        return is;
     }
 }

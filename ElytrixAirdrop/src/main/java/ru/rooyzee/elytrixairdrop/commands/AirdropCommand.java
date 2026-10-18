@@ -9,6 +9,7 @@ import org.bukkit.entity.Player;
 import ru.rooyzee.elytrixairdrop.Main;
 import ru.rooyzee.elytrixairdrop.airdrops.ActiveAirdrop;
 import ru.rooyzee.elytrixairdrop.airdrops.Airdrop;
+import ru.rooyzee.elytrixairdrop.gui.LootEditorMenu;
 import ru.rooyzee.elytrixairdrop.gui.MainMenu;
 import ru.rooyzee.elytrixairdrop.utils.ColorUtil;
 
@@ -43,6 +44,7 @@ public class AirdropCommand implements CommandExecutor, TabCompleter {
 
             case "reload":
                 plugin.getConfigManager().reload();
+                plugin.getAirdropManager().getLootFileService().loadAll();
                 sender.sendMessage(plugin.getConfigManager().getMessage("reload-success"));
                 break;
 
@@ -52,6 +54,16 @@ public class AirdropCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 new MainMenu(plugin).open((Player) sender);
+                break;
+
+            case "loot":
+            case "edit":
+                if (!(sender instanceof Player)) {
+                    sender.sendMessage(plugin.getConfigManager().getMessage("only-player"));
+                    return true;
+                }
+                String lootType = args.length >= 2 ? args[1].toLowerCase() : "peaceful";
+                new LootEditorMenu(plugin, lootType).open((Player) sender, 1);
                 break;
 
             case "start":
@@ -152,9 +164,9 @@ public class AirdropCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return Arrays.asList("help", "reload", "menu", "start", "stop", "tp", "info");
+            return Arrays.asList("help", "reload", "menu", "loot", "edit", "start", "stop", "tp", "info");
         }
-        if (args.length == 2 && args[0].equalsIgnoreCase("start")) {
+        if (args.length == 2 && (args[0].equalsIgnoreCase("start") || args[0].equalsIgnoreCase("loot") || args[0].equalsIgnoreCase("edit"))) {
             List<String> list = new ArrayList<>();
             for (Airdrop a : Airdrop.values()) list.add(a.getId());
             return list;

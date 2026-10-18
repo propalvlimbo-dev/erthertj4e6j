@@ -642,7 +642,7 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
     }
 
     private Inventory createMaskedLootInventory(Main plugin, Location chestLoc, ConfigurationSection cfg) {
-        List<ItemStack> pool = plugin.getAirdropManager().getLootFileService().load("fire");
+        List<ItemStack> pool = plugin.getAirdropManager().getLootFileService().rollDrops("fire", Bukkit.getOnlinePlayers().size());
         int min = 10, max = 20;
         if (cfg != null) {
             min = Math.max(0, cfg.getInt("loot-min-items", 10));

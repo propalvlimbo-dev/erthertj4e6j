@@ -616,7 +616,7 @@ sh.loc.getWorld().spawnParticle(ParticleUtil.END_ROD, sh.loc.clone().add(0.5, 0.
 
     private void openShulker(Main plugin, ShulkerData sh) {
 
-        List<ItemStack> pool = plugin.getAirdropManager().getLootFileService().load("sky_" + sh.rarity.id);
+        List<ItemStack> pool = plugin.getAirdropManager().getLootFileService().rollDrops("sky_" + sh.rarity.id, Bukkit.getOnlinePlayers().size());
 
         String title = ColorUtil.colorize("&f☁ &#F8BEFBᴀɪʀᴅʀᴏᴘ &7» " + sh.rarity.display);
 

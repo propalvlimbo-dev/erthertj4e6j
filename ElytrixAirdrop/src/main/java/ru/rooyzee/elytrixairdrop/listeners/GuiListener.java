@@ -1,13 +1,13 @@
 package ru.rooyzee.elytrixairdrop.listeners;
 
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
-import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -20,9 +20,6 @@ import ru.rooyzee.elytrixairdrop.gui.holders.MainMenuHolder;
 import ru.rooyzee.elytrixairdrop.gui.holders.SettingsMenuHolder;
 import ru.rooyzee.elytrixairdrop.utils.ColorUtil;
 import ru.rooyzee.elytrixairdrop.gui.SkySettingsMenu;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class GuiListener implements Listener {
 
@@ -58,10 +55,10 @@ public class GuiListener implements Listener {
             if (key == null) return;
 
             if ("back".equals(key)) { new MainMenu(plugin).open(p); return; }
-            if ("loot_editor".equals(key)) { new LootEditorMenu(plugin, id, 0).open(p); return; }
+            if ("loot_editor".equals(key)) { new LootEditorMenu(plugin, id).open(p, 1); return; }
             if (key.startsWith("loot_")) {
                 String lootId = key.substring(5);
-                new LootEditorMenu(plugin, lootId, 0).open(p);
+                new LootEditorMenu(plugin, lootId).open(p, 1);
                 return;
             }
 
@@ -104,43 +101,27 @@ public class GuiListener implements Listener {
             LootEditorHolder loh = (LootEditorHolder) holder;
             int raw = e.getRawSlot();
 
-            if (raw >= 45 && raw <= 53) {
+            if (raw >= 45 && raw < 54) {
                 e.setCancelled(true);
-                ItemStack cur = e.getCurrentItem();
-                if (cur == null) return;
-                String key = getKey(cur);
-                if (key == null) return;
+                int currentPage = loh.getPage();
+                LootEditorMenu menu = new LootEditorMenu(plugin, loh.getId(), loh.getTitle());
 
-                switch (key) {
-                    case "prev":
-                        if (loh.getPage() > 0) {
-                            saveLoot(e.getInventory(), loh.getId(), loh.getPage());
-                            new LootEditorMenu(plugin, loh.getId(), loh.getPage() - 1).open(p);
-                        }
-                        break;
-                    case "next":
-                        // Save first so a full page (slots 0..44) extends the loot list,
-                        // then open the next page only if loot now justifies it.
-                        saveLoot(e.getInventory(), loh.getId(), loh.getPage());
-                        int targetPage = loh.getPage() + 1;
-                        LootEditorMenu nextMenu = new LootEditorMenu(plugin, loh.getId(), targetPage);
-                        if (targetPage > nextMenu.getMaxPages()) {
-                            p.sendMessage(ColorUtil.colorize(
-                                    "&f☁ &#F8BEFBᴇʟʏᴛʀɪx &7» &cЗаполните все 45 слотов страницы, чтобы открыть следующую"));
-                            new LootEditorMenu(plugin, loh.getId(), loh.getPage()).open(p);
-                        } else {
-                            nextMenu.open(p);
-                        }
-                        break;
-                    case "save":
-                        saveLoot(e.getInventory(), loh.getId(), loh.getPage());
-                        p.sendMessage(ColorUtil.colorize("&f☁ &#F8BEFBᴇʟʏᴛʀɪx &7» &aЛут сохранён"));
-                        break;
-                    case "back":
-                        saveLoot(e.getInventory(), loh.getId(), loh.getPage());
-                        if (loh.getId().startsWith("sky_")) new SkySettingsMenu(plugin).open(p);
-                        else new AirdropSettingsMenu(plugin, loh.getId()).open(p);
-                        break;
+                if (raw == 45) { // Предыдущая страница
+                    if (currentPage > 1) {
+                        menu.saveFromInventory(e.getInventory(), currentPage);
+                        menu.open(p, currentPage - 1);
+                        p.playSound(p.getLocation(), Sound.ITEM_BOOK_PAGE_TURN, 1.0f, 1.0f);
+                    }
+                } else if (raw == 53) { // Следующая страница
+                    if (currentPage < 4) {
+                        menu.saveFromInventory(e.getInventory(), currentPage);
+                        menu.open(p, currentPage + 1);
+                        p.playSound(p.getLocation(), Sound.ITEM_BOOK_PAGE_TURN, 1.0f, 1.0f);
+                    }
+                } else if (raw == 49) { // Сохранить
+                    menu.saveFromInventory(e.getInventory(), currentPage);
+                    p.sendMessage(ColorUtil.colorize("&f☁ &#F8BEFBᴇʟʏᴛʀɪx &7» &aЛут для &f" + loh.getTitle() + " &8(Стр. " + currentPage + "/4) &aсохранён!"));
+                    p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
                 }
             }
         }
@@ -151,58 +132,12 @@ public class GuiListener implements Listener {
         InventoryHolder holder = e.getInventory().getHolder();
         if (holder instanceof LootEditorHolder) {
             LootEditorHolder loh = (LootEditorHolder) holder;
-            saveLoot(e.getInventory(), loh.getId(), loh.getPage());
-        }
-    }
-
-    private void saveLoot(Inventory top, String id, int page) {
-        // Preserve slot positions within the page so multi-page layout stays stable.
-        ItemStack[] pageSlots = new ItemStack[LootEditorMenu.SLOTS_PER_PAGE];
-        int lastFilled = -1;
-        for (int i = 0; i < LootEditorMenu.SLOTS_PER_PAGE; i++) {
-            ItemStack it = top.getItem(i);
-            if (it != null && it.getType() != Material.AIR) {
-                pageSlots[i] = it.clone();
-                lastFilled = i;
+            LootEditorMenu menu = new LootEditorMenu(plugin, loh.getId(), loh.getTitle());
+            menu.saveFromInventory(e.getInventory(), loh.getPage());
+            if (e.getPlayer() instanceof Player) {
+                ((Player) e.getPlayer()).sendMessage(ColorUtil.colorize("&f☁ &#F8BEFBᴇʟʏᴛʀɪx &7» &aЛут для &f" + loh.getTitle() + " &8(Стр. " + loh.getPage() + "/4) &aавтоматически сохранён."));
             }
         }
-
-        List<ItemStack> all = plugin.getAirdropManager().getLootFileService().load(id);
-        if (all == null) all = new ArrayList<>();
-        else all = new ArrayList<>(all);
-
-        int start = page * LootEditorMenu.SLOTS_PER_PAGE;
-
-        // Ensure list is long enough to hold this page's slot positions
-        while (all.size() < start) {
-            all.add(null);
-        }
-
-        // Replace this page range
-        int oldEnd = Math.min(start + LootEditorMenu.SLOTS_PER_PAGE, all.size());
-        List<ItemStack> result = new ArrayList<>(start + LootEditorMenu.SLOTS_PER_PAGE);
-        for (int i = 0; i < start; i++) {
-            result.add(i < all.size() ? all.get(i) : null);
-        }
-
-        if (lastFilled >= 0) {
-            for (int i = 0; i <= lastFilled; i++) {
-                result.add(pageSlots[i]);
-            }
-        }
-
-        for (int i = oldEnd; i < all.size(); i++) {
-            result.add(all.get(i));
-        }
-
-        // Compact nulls only at the very end; keep mid-list nulls out by filtering empties
-        // but preserve order of real items across pages.
-        List<ItemStack> cleaned = new ArrayList<>(result.size());
-        for (ItemStack it : result) {
-            if (it != null && it.getType() != Material.AIR) cleaned.add(it);
-        }
-
-        plugin.getAirdropManager().getLootFileService().save(id, cleaned);
     }
 
     private String getKey(ItemStack it) {
