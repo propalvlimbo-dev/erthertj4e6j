@@ -1,6 +1,7 @@
 package ru.rooyzee.elytrixtrader.trader;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -17,11 +18,7 @@ import ru.rooyzee.elytrixtrader.region.RegionManager;
 import ru.rooyzee.elytrixtrader.region.TraderRegion;
 import ru.rooyzee.elytrixtrader.schematic.SchematicSnapshot;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Locale;
-import java.util.Random;
+import java.util.*;
 
 public class TraderManager {
 
@@ -91,16 +88,12 @@ public class TraderManager {
         }
         if (enabled.isEmpty()) { scheduleNextEvent(); return; }
 
-        // Уже есть живой торговец — пропускаем этот ивент
         if (total() > 0) { scheduleNextEvent(); return; }
 
         TraderInstance spawned = null;
         for (int attempt = 0; attempt < enabled.size(); attempt++) {
             TraderConfig config = enabled.get(cycleIndex % enabled.size());
             cycleIndex = (cycleIndex + 1) % enabled.size();
-            // announce=false: отдельный broadcast «торговец заспавнился» здесь
-            // не шлём — ниже идёт одно общее сообщение event-started (как и при
-            // админ-запуске /etr start). Раньше приходило два сообщения.
             try { spawned = spawn(config, false); } catch (Throwable ignored) { spawned = null; }
             if (spawned != null) break;
         }
@@ -117,19 +110,10 @@ public class TraderManager {
         return String.format("%02d:%02d", abs / 3600, (abs % 3600) / 60);
     }
 
-    /** Спавн торговца c обычным broadcast'ом (для внешних/API-вызовов). */
     public TraderInstance spawn(TraderConfig config) {
         return spawn(config, true);
     }
 
-    /**
-     * Спавн торговца.
-     *
-     * @param announce true — дополнительно слать персональный broadcast
-     *                 «торговец заспавнился» (announcer.spawned). Плановый
-     *                 запуск и админ-команда анонсируются ОДНИМ общим
-     *                 сообщением event-started, поэтому для них announce=false.
-     */
     public TraderInstance spawn(TraderConfig config, boolean announce) {
         if (config == null || !config.enabled()) return null;
         if (count(config.id()) >= config.maxSimultaneous()) return null;
@@ -155,23 +139,15 @@ public class TraderManager {
             loc = new Location(world, loc.getX(), safeY, loc.getZ(), loc.getYaw(), loc.getPitch());
         }
 
-        // Schematic
         Location schematicAnchor = loc.clone().add(0, 1, 0);
         SchematicSnapshot snapshot = null;
         if (config.schematic().enabled()) {
             try {
                 Location anchor = config.schematic().anchor(schematicAnchor);
                 snapshot = plugin.schematics().pasteWithBackup(anchor, config.schematic());
-            } catch (Throwable t) {
-            }
+            } catch (Throwable ignored) {}
         }
 
-        // Где стоит NPC:
-        //  1) ПРИОРИТЕТ — блок-маркер центра схематики (по умолчанию УЛЕЙ):
-        //     автор схемы размечает им середину постройки, торговец ставится
-        //     ровно НА этот блок (ноги на верхней грани, по центру блока).
-        //  2) Если маркера нет — прежняя логика: на 1 блок выше самой высокой
-        //     точки поставленных блоков схемы.
         if (snapshot != null) {
             Location stand = snapshot.standingSpot();
             if (stand != null) {
@@ -189,19 +165,16 @@ public class TraderManager {
         TraderInstance instance = new TraderInstance(plugin, config, loc);
         if (snapshot != null) instance.setSchematicSnapshot(snapshot);
         instance.spawn();
-        // v1.9: карта entityId → торговец для перехвата ПКМ (раньше никогда
-        // не заполнялась — меню по клику на NPC не открывалось).
         byEntity.put(instance.entityId(), instance);
 
         try {
             TraderRegion region = regionManager.createRegion(loc, config, instance);
             instance.setRegion(region);
-        } catch (Throwable t) {
-        }
+        } catch (Throwable ignored) {}
 
         instances.add(instance);
         if (instances.size() == 1) {
-            eventEndedAnnounced = false; // v1.5: новый ивент начинается
+            eventEndedAnnounced = false;
         }
         if (announce) {
             try { plugin.announcer().spawned(instance); } catch (Throwable ignored) {}
@@ -210,39 +183,41 @@ public class TraderManager {
         return instance;
     }
 
-    // ─── Поиск места для спавна ─────────────────────────────────────
+    // ─── Оптимизированный поиск места для спавна (0% лагов) ───────────
     public Location findLocation(TraderConfig config) {
         List<String> worlds = new ArrayList<>(config.worlds());
         if (worlds.isEmpty()) worlds.add("world");
         Collections.shuffle(worlds, random);
 
         AppConfig cfg = plugin.config();
-        int tries = 300;
 
         for (String name : worlds) {
             World world = Bukkit.getWorld(name);
             if (world == null) continue;
 
+            List<int[]> regionBounds = protectedRegionBounds(world);
+
+            // 1. Сначала ищем среди уже загруженных чанков (0 мс задержки!)
+            Location fromLoaded = tryFindFromLoadedChunks(world, config, regionBounds);
+            if (fromLoaded != null) {
+                return fromLoaded;
+            }
+
+            // 2. Если в загруженных чанках подходящего места нет, делаем быстрый поиск с ограничением
             Location spawn = world.getSpawnLocation();
             double cx = spawn.getX(), cz = spawn.getZ();
             int top = world.getMaxHeight() - 8;
             int floor = Math.max(SchematicConfig.getMinHeight(world) + 2, 0);
 
-            // Границы чужих WorldGuard-регионов собираем ОДИН раз на мир:
-            // раньше регион-менеджер опрашивался на каждую из сотен попыток,
-            // что давало заметную нагрузку на главном потоке при спавне.
-            java.util.List<int[]> regionBounds = protectedRegionBounds(world);
-
-            for (int attempt = 0; attempt < tries; attempt++) {
+            for (int attempt = 0; attempt < 35; attempt++) {
                 double angle = random.nextDouble() * Math.PI * 2.0;
                 double dist = cfg.minRadius() + random.nextDouble() * (cfg.maxRadius() - cfg.minRadius());
                 int x = (int) (cx + Math.cos(angle) * dist);
                 int z = (int) (cz + Math.sin(angle) * dist);
 
-                ensureChunkLoaded(world, x, z);
-
-                // WorldGuard regions
                 if (!isFarFromRegions(world, x, z, REGION_PADDING, regionBounds)) continue;
+
+                ensureChunkLoaded(world, x, z);
 
                 int y = findSafeY(world, x, z, top, floor);
                 if (y < 0) continue;
@@ -252,18 +227,50 @@ public class TraderManager {
             }
         }
 
-        // Fallback: world spawn
+        // Fallback: spawn
         for (String name : worlds) {
             World world = Bukkit.getWorld(name);
             if (world == null) continue;
             Location s = world.getSpawnLocation();
             int y = findSafeY(world, s.getBlockX(), s.getBlockZ(), world.getMaxHeight() - 8, 0);
             if (y < 1) y = 64;
-            // Clear spot
             for (int dy = 0; dy < 3; dy++) {
                 world.getBlockAt(s.getBlockX(), y + dy, s.getBlockZ()).setType(Material.AIR, false);
             }
             return new Location(world, s.getBlockX() + 0.5, y + 1, s.getBlockZ() + 0.5);
+        }
+        return null;
+    }
+
+    private Location tryFindFromLoadedChunks(World world, TraderConfig config, List<int[]> regionBounds) {
+        Chunk[] loaded = world.getLoadedChunks();
+        if (loaded == null || loaded.length == 0) return null;
+
+        List<Chunk> shuffled = new ArrayList<>(Arrays.asList(loaded));
+        Collections.shuffle(shuffled, random);
+
+        AppConfig cfg = plugin.config();
+        int top = world.getMaxHeight() - 8;
+        int floor = Math.max(SchematicConfig.getMinHeight(world) + 2, 0);
+        Location spawn = world.getSpawnLocation();
+        double cx = spawn.getX(), cz = spawn.getZ();
+
+        for (Chunk chunk : shuffled) {
+            int x = (chunk.getX() << 4) + 8;
+            int z = (chunk.getZ() << 4) + 8;
+
+            double dx = x - cx;
+            double dz = z - cz;
+            double dist = Math.sqrt(dx * dx + dz * dz);
+            if (dist < cfg.minRadius() || dist > cfg.maxRadius()) continue;
+
+            if (!isFarFromRegions(world, x, z, REGION_PADDING, regionBounds)) continue;
+
+            int y = findSafeY(world, x, z, top, floor);
+            if (y < 0) continue;
+            if (!isFlatEnough(world, x, z, y)) continue;
+
+            return new Location(world, x + 0.5, y, z + 0.5);
         }
         return null;
     }
@@ -299,20 +306,14 @@ public class TraderManager {
         return true;
     }
 
-    /**
-     * Собирает границы «чужих» WorldGuard-регионов мира (без наших elytrix_*
-     * и без __global__) в виде int[]{minX, maxX, minZ, maxZ}.
-     */
-    private java.util.List<int[]> protectedRegionBounds(World world) {
+    private List<int[]> protectedRegionBounds(World world) {
         try {
             com.sk89q.worldedit.bukkit.BukkitAdapter.adapt(world);
             com.sk89q.worldguard.WorldGuard wg = com.sk89q.worldguard.WorldGuard.getInstance();
             com.sk89q.worldguard.protection.managers.RegionManager rm = wg.getPlatform().getRegionContainer()
                     .get(com.sk89q.worldedit.bukkit.BukkitAdapter.adapt(world));
-            if (rm == null) {
-                return null;
-            }
-            java.util.List<int[]> bounds = new ArrayList<>();
+            if (rm == null) return null;
+            List<int[]> bounds = new ArrayList<>();
             for (com.sk89q.worldguard.protection.regions.ProtectedRegion r : rm.getRegions().values()) {
                 String id = r.getId().toLowerCase();
                 if (id.startsWith("elytrix_") || id.equals("__global__")) continue;
@@ -327,7 +328,7 @@ public class TraderManager {
     }
 
     private boolean isFarFromRegions(World world, int x, int z, int padding,
-                                     java.util.List<int[]> regionBounds) {
+                                     List<int[]> regionBounds) {
         for (TraderInstance inst : instances) {
             if (inst.location().getWorld() != world) continue;
             double dx = inst.location().getBlockX() - x;
@@ -381,10 +382,9 @@ public class TraderManager {
         }
         instances.clear();
         regionManager.clearAll();
-        eventEndedAnnounced = true; // при остановке ивент-завершение не анонсируем
+        eventEndedAnnounced = true;
     }
 
-    /** v1.5: когда ушёл последний торговец — сообщение об окончании ивента (один раз). */
     private void checkEventEnded() {
         if (!plugin.isEnabled() || eventEndedAnnounced) return;
         for (TraderInstance inst : instances) {
@@ -397,7 +397,9 @@ public class TraderManager {
     public void despawnImmediate(TraderInstance instance) {
         if (instance == null) return;
         SchematicSnapshot snap = instance.schematicSnapshot();
-        if (snap != null) { try { plugin.schematics().restore(snap); } catch (Throwable ignored) {} }
+        if (snap != null) {
+            try { snap.restore(); } catch (Throwable ignored) {}
+        }
         removeRegion(instance);
         instance.finalizeDespawn();
         plugin.announcer().expired(instance);
@@ -410,7 +412,9 @@ public class TraderManager {
         instance.stopAura();
         SchematicSnapshot snap = instance.schematicSnapshot();
         animation.play(instance, instance.region(), snap, () -> {
-            if (snap != null) { try { plugin.schematics().restore(snap); } catch (Throwable ignored) {} }
+            if (snap != null) {
+                try { snap.restore(); } catch (Throwable ignored) {}
+            }
             removeRegion(instance);
             instance.finalizeDespawn();
             plugin.announcer().expired(instance);
@@ -432,29 +436,24 @@ public class TraderManager {
         byEntity.remove(instance.entityId());
     }
 
-    // === API for ElytrixTraderCommand (back-compat) ===
-    private final java.util.Map<Integer, TraderInstance> byEntity = new java.util.HashMap<>();
+    private final Map<Integer, TraderInstance> byEntity = new HashMap<>();
 
     public TraderInstance byEntityId(int entityId) {
         return byEntity.get(entityId);
     }
 
-    /** v1.9: пере-регистрация entityId после respawn скина (id мог смениться). */
     public void reRegisterByEntity(TraderInstance instance) {
         if (instance != null && instance.entityId() > 0) {
             byEntity.put(instance.entityId(), instance);
         }
     }
 
-    public TraderInstance spawnForce(TraderConfig config, org.bukkit.Location loc) {
+    public TraderInstance spawnForce(TraderConfig config, Location loc) {
         return spawnForce(config, loc, true);
     }
 
-    public TraderInstance spawnForce(TraderConfig config, org.bukkit.Location loc, boolean announce) {
+    public TraderInstance spawnForce(TraderConfig config, Location loc, boolean announce) {
         if (config == null || !config.enabled() || loc == null || loc.getWorld() == null) return null;
-        // spawnInternal сам добавляет в instances и возвращает экземпляр;
-        // раньше тут было instances.add(...) + return null — трейдер спавнился,
-        // но команда докладывала «не найдено место» и спавнила ещё раз.
         return spawnInternal(config, loc, announce);
     }
 
@@ -477,7 +476,6 @@ public class TraderManager {
         if (inst == null) { if (after != null) after.run(); return; }
         expire(inst);
     }
-
 
     public TraderInstance nearest(Player player, String traderId) {
         if (player == null) return null;

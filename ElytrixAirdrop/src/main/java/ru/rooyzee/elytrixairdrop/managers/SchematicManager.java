@@ -1,5 +1,4 @@
 package ru.rooyzee.elytrixairdrop.managers;
-import ru.rooyzee.elytrixairdrop.utils.ParticleUtil;
 
 import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.WorldEdit;
@@ -17,17 +16,22 @@ import com.sk89q.worldedit.world.block.BlockTypes;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.scheduler.BukkitTask;
 import ru.rooyzee.elytrixairdrop.Main;
+import ru.rooyzee.elytrixairdrop.utils.ParticleUtil;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Менеджер схематик и единой безопасной волновой анимации растворения/восстановления блоков.
+ */
 public class SchematicManager {
 
     private static final int RESTORE_STEPS = 20;
@@ -82,7 +86,7 @@ public class SchematicManager {
         int clearAbove = 15;
         int maxWorldY = world.getMaxHeight() - 1;
 
-        Map<Long, int[]> columnY = new HashMap<>(); // key -> {minY, maxY}
+        Map<Long, int[]> columnY = new HashMap<>();
         List<int[]> solidBlocks = new ArrayList<>();
 
         for (BlockVector3 pos : clipboard.getRegion()) {
@@ -107,7 +111,7 @@ public class SchematicManager {
             solidBlocks.add(new int[]{wx, wy, wz, isBeacon ? 1 : 0});
         }
 
-        // 1. Очищаем только колонны, где присутствует схематика (не срезая окружающие холмы)
+        // 1. Очищаем только колонны, где присутствует схематика
         for (Map.Entry<Long, int[]> e : columnY.entrySet()) {
             long key = e.getKey();
             int wx = (int) (key >> 32);
@@ -129,7 +133,7 @@ public class SchematicManager {
             }
         }
 
-        // 2. Обязательно сохраняем все позиции вставки блоков схематики (даже если там стал AIR после очистки)
+        // 2. Сохраняем все позиции вставки блоков схематики
         for (int[] sb : solidBlocks) {
             int wx = sb[0], wy = sb[1], wz = sb[2];
             Location loc = new Location(world, wx, wy, wz);
@@ -143,9 +147,7 @@ public class SchematicManager {
         }
 
         // 3. Вставляем схематику через WorldEdit
-        try (EditSession editSession = WorldEdit.getInstance()
-                .getEditSessionFactory()
-                .getEditSession(BukkitAdapter.adapt(world), -1)) {
+        try (EditSession editSession = createEditSession(world)) {
             Operation op = new ClipboardHolder(clipboard)
                     .createPaste(editSession)
                     .to(BlockVector3.at(target.getBlockX(), target.getBlockY(), target.getBlockZ()))
@@ -160,6 +162,18 @@ public class SchematicManager {
         }
     }
 
+    private EditSession createEditSession(World world) {
+        try {
+            Method m = WorldEdit.class.getMethod("newEditSession", com.sk89q.worldedit.world.World.class);
+            return (EditSession) m.invoke(WorldEdit.getInstance(), BukkitAdapter.adapt(world));
+        } catch (Throwable t) {
+            return WorldEdit.getInstance().getEditSessionFactory().getEditSession(BukkitAdapter.adapt(world), -1);
+        }
+    }
+
+    /**
+     * Единая безопасная волновая анимация растворения блоков и полного восстановления террейна.
+     */
     public void restore(Map<Location, BlockData> backup) {
         if (backup == null || backup.isEmpty()) return;
         if (!plugin.isEnabled()) {
@@ -209,8 +223,9 @@ public class SchematicManager {
         final BukkitTask[] holder = new BukkitTask[1];
         holder[0] = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             try {
-                if (currentStep[0] >= RESTORE_STEPS) {
+                if (currentStep[0] >= RESTORE_STEPS || !plugin.isEnabled()) {
                     if (holder[0] != null) holder[0].cancel();
+                    restoreImmediate(backup);
                     return;
                 }
                 List<Map.Entry<Location, BlockData>> wave = waves.get(currentStep[0]);
@@ -220,23 +235,26 @@ public class SchematicManager {
                     try {
                         Block b = e.getKey().getBlock();
                         Material targetMat = e.getValue().material;
-                        if (b.getType() != targetMat) {
+                        Material currentMat = b.getType();
+
+                        if (currentMat != targetMat) {
+                            if (particleBudget > 0 && b.getWorld() != null) {
+                                Location particleLoc = e.getKey().clone().add(0.5, 0.5, 0.5);
+                                if (currentMat != Material.AIR) {
+                                    try {
+                                        b.getWorld().spawnParticle(ParticleUtil.BLOCK_CRACK, particleLoc, 3,
+                                                0.18, 0.18, 0.18, 0.02, b.getBlockData());
+                                    } catch (Throwable ignored) {}
+                                }
+                                b.getWorld().spawnParticle(ParticleUtil.CLOUD, particleLoc, 1, 0.15, 0.15, 0.15, 0.01);
+                                particleBudget--;
+                            }
                             b.setType(targetMat, false);
                         }
                         try {
                             org.bukkit.block.data.BlockData data = Bukkit.createBlockData(e.getValue().data);
                             b.setBlockData(data, false);
                         } catch (Exception ignored) {}
-
-                        if (particleBudget > 0 && b.getWorld() != null) {
-                            double ddx = e.getKey().getBlockX() - cX;
-                            double ddz = e.getKey().getBlockZ() - cZ;
-                            if (ddx * ddx + ddz * ddz > 4) {
-                                Location particleLoc = e.getKey().clone().add(0.5, 0.5, 0.5);
-                                b.getWorld().spawnParticle(ParticleUtil.CLOUD, particleLoc, 2, 0.2, 0.2, 0.2, 0.02);
-                                particleBudget--;
-                            }
-                        }
                     } catch (Exception ignored) {}
                 }
                 currentStep[0]++;

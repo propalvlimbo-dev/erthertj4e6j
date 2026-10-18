@@ -13,39 +13,33 @@ import ru.rooyzee.elytrixtrader.Main;
 import ru.rooyzee.elytrixtrader.model.TraderInstance;
 import ru.rooyzee.elytrixtrader.region.TraderRegion;
 import ru.rooyzee.elytrixtrader.schematic.SchematicSnapshot;
+import ru.rooyzee.elytrixtrader.util.ParticleUtil;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
 /**
- * Красивое и СДЕРЖАННОЕ завершение ивента (~7 с): «торговец возносится».
+ * Единый стиль безопасного поблочного исчезновения ивентов со схематикой.
  *
- *  1. Блоки схематики мягко растворяются снизу вверх — каждый в свой момент
- *     (высота + лёгкий разброс, граница «дышит»), в тихую крошку своей
- *     текстуры и редкую зелёную пыль.
- *  2. Торговец плавно поднимается (~3.5 бл) и медленно поворачивается
- *     (~1.5 оборота). Движение — smootherstep: без рывка на старте
- *     и без резкой остановки в конце.
- *  3. Под ним — тонкий столб зелёной пыли (как дорожка света), вокруг —
- *     две тихие точки по спирали.
- *  4. Финал: мягкое расходящееся кольцо пыли, немного чар и искр,
- *     негромкие звуки. Без взрывов и салютов — «не через чур».
+ * 1. Блоки схематики мягко растворяются волнами снизу вверх в крошку
+ *    своей текстуры (BLOCK_CRACK) и частицы дыма/пыли (единый стиль с огненным аирдропом).
+ * 2. Торговец плавно возносится и растворяется в воздухе.
+ * 3. Все оригинальные блоки мира (террейн) гарантированно восстанавливаются
+ *    в исходное состояние без повреждений ландшафта.
  */
 public class DisappearAnimation {
 
-    private static final int    RISE_TICKS     = 140;   // 7 с — общая длительность
-    private static final int    DISSOLVE_FROM  = 12;    // тик начала растворения блоков
-    private static final int    DISSOLVE_TO    = 118;   // тик, к которому исчезнут все
-    private static final double RISE_HEIGHT    = 3.5;   // итоговая высота подъёма, бл
-    private static final double SPIN_DEGREES   = 540.0; // суммарный поворот (1.5 оборота)
+    private static final int    RISE_TICKS     = 100;   // ~5 с общая длительность
+    private static final int    DISSOLVE_FROM  = 10;    // тик начала растворения блоков
+    private static final int    DISSOLVE_TO    = 85;    // тик завершения растворения блоков
+    private static final double RISE_HEIGHT    = 3.5;   // высота подъема торговца
+    private static final double SPIN_DEGREES   = 540.0; // поворот торговца
 
-    /** Зелёная пыль — та же, что в ауре: единый тихий стиль. */
     private static final Particle.DustOptions DUST =
-            new Particle.DustOptions(Color.fromRGB(140, 233, 154), 0.8F);
-    /** Мелкая пыль для столба и кольца. */
+            new Particle.DustOptions(Color.fromRGB(248, 190, 251), 0.8F);
     private static final Particle.DustOptions DUST_FINE =
-            new Particle.DustOptions(Color.fromRGB(190, 245, 200), 0.55F);
+            new Particle.DustOptions(Color.fromRGB(248, 190, 251), 0.55F);
 
     private final Main plugin;
     private final Random random = new Random();
@@ -56,12 +50,14 @@ public class DisappearAnimation {
 
     public void play(TraderInstance instance, TraderRegion region, SchematicSnapshot snapshot, Runnable onComplete) {
         if (instance == null) {
+            if (snapshot != null) snapshot.restore();
             if (onComplete != null) onComplete.run();
             return;
         }
         Location start = instance.location().clone();
         World world = start.getWorld();
         if (world == null) {
+            if (snapshot != null) snapshot.restore();
             if (onComplete != null) onComplete.run();
             return;
         }
@@ -69,9 +65,10 @@ public class DisappearAnimation {
         instance.stopAura();
         instance.hideHolograms();
         instance.raiseHands();
+
         try {
-            // Тихий старт: маяк «просыпается» почти беззвучно
-            world.playSound(start, Sound.BLOCK_BEACON_ACTIVATE, 0.3f, 1.7f);
+            world.playSound(start, Sound.BLOCK_BEACON_DEACTIVATE, 0.8f, 1.2f);
+            world.playSound(start, Sound.ENTITY_ENDERMAN_TELEPORT, 0.6f, 0.8f);
         } catch (Throwable ignored) {}
 
         List<Shard> shards = collectShards(snapshot);
@@ -84,25 +81,24 @@ public class DisappearAnimation {
             @Override
             public void run() {
                 try {
-                    if (!instance.isDespawning()) {
+                    if (!instance.isDespawning() || !plugin.isEnabled()) {
                         cancel();
+                        if (snapshot != null) snapshot.restore();
                         if (onComplete != null) onComplete.run();
                         return;
                     }
                     tick++;
                     double p = Math.min(1.0, tick / (double) RISE_TICKS);
 
-                    // ── Торговец: подъём и вращение одним плавным темпом ──
-                    // smootherstep: 0 на старте, разгон в середине, мягкое
-                    // торможение к финалу — никаких рывков и «щелчков».
-                    double ease = p * p * p * (p * (6.0 * p - 15.0) + 10.0);
+                    // Плавный подъем и вращение торговца
+                    double ease = p * p * (3.0 - 2.0 * p);
                     double height = RISE_HEIGHT * ease;
                     float yaw = startYaw + (float) (SPIN_DEGREES * ease);
                     instance.setPos(new Location(world,
                             start.getX(), start.getY() + height, start.getZ(), yaw, 0.0f));
                     instance.tickViewers();
 
-                    // ── Блоки: мягкое растворение снизу вверх ──
+                    // Растворение блоков схематики волной снизу вверх
                     if (!shards.isEmpty() && tick >= DISSOLVE_FROM) {
                         double progress = Math.min(1.0, (tick - DISSOLVE_FROM)
                                 / (double) (DISSOLVE_TO - DISSOLVE_FROM));
@@ -112,42 +108,30 @@ public class DisappearAnimation {
                         }
                     }
 
-                    // ── Тонкий столб пыли под торговцем (дорожка света) ──
-                    if (tick % 4 == 0) {
+                    // Частицы восхождения
+                    if (tick % 3 == 0) {
                         double feet = start.getY() + height;
-                        int steps = Math.max(2, (int) (height / 0.9));
-                        for (int k = 0; k <= steps; k++) {
-                            double y = start.getY() + (feet - start.getY()) * (k / (double) steps);
-                            world.spawnParticle(Particle.REDSTONE,
-                                    start.getX(), y, start.getZ(), 1, 0.05, 0.05, 0.05, 0, DUST_FINE);
-                        }
-                    }
-
-                    // ── Две тихие точки по спирали вокруг NPC ──
-                    if (tick % 5 == 0) {
-                        double ang = tick * 0.22;
-                        double cy = start.getY() + 0.4 + height;
-                        for (int k = 0; k < 2; k++) {
-                            double a = ang + k * Math.PI;
-                            world.spawnParticle(Particle.REDSTONE,
-                                    start.getX() + Math.cos(a) * 0.8, cy, start.getZ() + Math.sin(a) * 0.8,
-                                    1, 0.02, 0.04, 0.02, 0, DUST);
+                        world.spawnParticle(ParticleUtil.DUST_PARTICLE,
+                                start.getX(), feet + 0.2, start.getZ(), 2, 0.15, 0.2, 0.15, 0, DUST_FINE);
+                        if (random.nextInt(3) == 0) {
+                            world.spawnParticle(ParticleUtil.CAMPFIRE_SMOKE,
+                                    start.getX(), feet, start.getZ(), 1, 0.1, 0.1, 0.1, 0.01);
                         }
                     }
 
                     if (tick >= RISE_TICKS) {
                         cancel();
-                        vanish(instance, start, world, onComplete);
+                        vanish(instance, start, world, snapshot, onComplete);
                     }
                 } catch (Throwable t) {
                     cancel();
+                    if (snapshot != null) snapshot.restore();
                     if (onComplete != null) onComplete.run();
                 }
             }
         }.runTaskTimer(plugin, 0L, 1L);
     }
 
-    /** Блоки схематики (только её собственные, без террейна), снизу вверх. */
     private List<Shard> collectShards(SchematicSnapshot snapshot) {
         List<Shard> shards = new ArrayList<>();
         if (snapshot == null) return shards;
@@ -157,13 +141,12 @@ public class DisappearAnimation {
             Material type = block.getType();
             if (type == null || type.isAir()) continue;
             shards.add(new Shard(loc.clone(), block.getBlockData(),
-                    loc.getBlockY() + random.nextDouble() * 0.55));
+                    loc.getBlockY() + random.nextDouble() * 0.4));
         }
         shards.sort((a, b) -> Double.compare(a.sortKey, b.sortKey));
         return shards;
     }
 
-    /** Один блок тихо исчезает: пара крошек текстуры, иногда пылинка. */
     private void dissolve(Shard shard, World world) {
         try {
             Location loc = shard.loc;
@@ -172,49 +155,45 @@ public class DisappearAnimation {
             double px = loc.getBlockX() + 0.5;
             double py = loc.getBlockY() + 0.5;
             double pz = loc.getBlockZ() + 0.5;
-            world.spawnParticle(Particle.BLOCK_CRACK, px, py, pz, 2, 0.18, 0.18, 0.18, 0.005, shard.data);
-            if (random.nextInt(8) == 0) {
-                world.spawnParticle(Particle.REDSTONE, px, py + 0.1, pz, 1, 0.2, 0.25, 0.2, 0, DUST_FINE);
+
+            try {
+                world.spawnParticle(ParticleUtil.BLOCK_CRACK, px, py, pz, 4, 0.2, 0.2, 0.2, 0.02, shard.data);
+            } catch (Throwable ignored) {}
+
+            if (random.nextInt(4) == 0) {
+                world.spawnParticle(ParticleUtil.CLOUD, px, py + 0.1, pz, 1, 0.15, 0.15, 0.15, 0.01);
             }
         } catch (Throwable ignored) {}
     }
 
-    /** Финал: мягкое кольцо пыли, немного чар и искр, негромкие звуки. */
-    private void vanish(TraderInstance instance, Location start, World world, Runnable onComplete) {
-        Location at = new Location(world, start.getX(), start.getY() + RISE_HEIGHT + 1.0, start.getZ());
+    private void vanish(TraderInstance instance, Location start, World world, SchematicSnapshot snapshot, Runnable onComplete) {
+        Location at = new Location(world, start.getX(), start.getY() + RISE_HEIGHT + 0.8, start.getZ());
         try {
-            // Тихая вспышка чар и пара искр
-            world.spawnParticle(Particle.ENCHANTMENT_TABLE, at, 18, 0.5, 0.5, 0.5, 0.1);
-            world.spawnParticle(Particle.END_ROD, at, 6, 0.25, 0.6, 0.25, 0.02);
-            // Мягкое расходящееся кольцо зелёной пыли
-            for (int step = 0; step < 3; step++) {
-                double radius = 0.6 + step * 0.7;
-                int points = 10 + step * 4;
-                for (int k = 0; k < points; k++) {
-                    double a = (k / (double) points) * Math.PI * 2.0;
-                    world.spawnParticle(Particle.REDSTONE,
-                            at.getX() + Math.cos(a) * radius, at.getY() - 0.6, at.getZ() + Math.sin(a) * radius,
-                            1, 0.01, 0.01, 0.01, 0, DUST);
-                }
-            }
-            world.playSound(at, Sound.BLOCK_BEACON_DEACTIVATE, 0.5f, 1.5f);
-            world.playSound(at, Sound.ENTITY_ENDERMAN_TELEPORT, 0.35f, 1.1f);
+            world.spawnParticle(ParticleUtil.ENCHANTMENT_TABLE, at, 25, 0.6, 0.6, 0.6, 0.1);
+            world.spawnParticle(ParticleUtil.END_ROD, at, 10, 0.3, 0.5, 0.3, 0.03);
+            world.spawnParticle(ParticleUtil.CLOUD, at, 15, 0.5, 0.3, 0.5, 0.04);
+            world.playSound(at, Sound.ENTITY_ENDERMAN_TELEPORT, 0.8f, 1.2f);
+
             if (instance.player() != null) {
                 instance.player().setInvisible(true);
             }
             instance.tickViewers();
         } catch (Throwable ignored) {}
 
+        // Гарантированно восстанавливаем оригинальный террейн мира
+        if (snapshot != null) {
+            snapshot.restore();
+        }
+
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             if (onComplete != null) onComplete.run();
-        }, 8L);
+        }, 5L);
     }
 
-    /** Блок схематики: где стоит и чем «крошится». */
     private static final class Shard {
         final Location loc;
         final BlockData data;
-        final double sortKey; // высота + разброс: порядок растворения
+        final double sortKey;
 
         Shard(Location loc, BlockData data, double sortKey) {
             this.loc = loc;
