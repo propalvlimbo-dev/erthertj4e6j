@@ -3,9 +3,9 @@ package ru.rooyzee.elytrixairdrop.services;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldguard.WorldGuard;
-import com.sk89q.worldguard.protection.regions.ProtectedCuboidRegion;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
+import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -27,9 +27,7 @@ public class LocationFinder {
     private final Random random = new Random();
     private final Deque<long[]> recent = new ArrayDeque<>();
     private final Map<Long, Integer> heightCache = new HashMap<>();
-
-    // Reused per-search WG snapshot to avoid iterating all regions every attempt
-    private List<int[]> regionBoxes; // {minX, maxX, minZ, maxZ}
+    private List<int[]> regionBoxes;
 
     public LocationFinder(Main plugin) {
         this.plugin = plugin;
@@ -42,28 +40,107 @@ public class LocationFinder {
     public Location findWithLevel(World world, int airdropRadius, int level) {
         heightCache.clear();
         regionBoxes = buildRegionBoxes(world);
+
+        // 1. Сначала мгновенно ищем среди уже загруженных чанков мира (0% лагов!)
+        Location fromLoaded = tryFindFromLoadedChunks(world, airdropRadius);
+        if (fromLoaded != null) {
+            remember(fromLoaded);
+            return fromLoaded;
+        }
+
+        // 2. Если в загруженных чанках подходящего места нет, ищем с минимальной догрузкой чанков
         switch (level) {
-            case 0: return tryFind(world, airdropRadius, 5, 3, false, false, 80);
-            case 1: return tryFind(world, airdropRadius, 8, 5, true, false, 120);
-            case 2: return tryFind(world, airdropRadius, 12, 8, true, true, 160);
+            case 0: return tryFind(world, airdropRadius, 5, 3, false, false, 50);
+            case 1: return tryFind(world, airdropRadius, 8, 5, true, false, 30);
+            case 2: return tryFind(world, airdropRadius, 12, 8, true, true, 40);
             case 3: return tryEmergency(world, airdropRadius);
             default: return null;
         }
     }
 
+    private Location tryFindFromLoadedChunks(World world, int airdropRadius) {
+        Chunk[] loaded = world.getLoadedChunks();
+        if (loaded == null || loaded.length == 0) return null;
+
+        List<Chunk> shuffled = new ArrayList<>(Arrays.asList(loaded));
+        Collections.shuffle(shuffled, random);
+
+        ConfigurationSection s = plugin.getConfigManager().getConfig().getConfigurationSection("spawn");
+        int minX = s != null ? s.getInt("min-x", -3000) : -3000;
+        int maxX = s != null ? s.getInt("max-x", 3000) : 3000;
+        int minZ = s != null ? s.getInt("min-z", -3000) : -3000;
+        int maxZ = s != null ? s.getInt("max-z", 3000) : 3000;
+
+        for (Chunk chunk : shuffled) {
+            int cx = (chunk.getX() << 4) + 8;
+            int cz = (chunk.getZ() << 4) + 8;
+
+            if (cx < minX || cx > maxX || cz < minZ || cz > maxZ) continue;
+            if (isRecent(cx, cz)) continue;
+
+            int y = getHeight(world, cx, cz);
+            if (y < 1 || y > world.getMaxHeight() - 25) continue;
+
+            BlockVector3 bVec = BlockVector3.at(cx, y, cz);
+            Material under = world.getBlockAt(cx, y, cz).getType();
+            if (under == Material.WATER || under == Material.LAVA) continue;
+
+            Location loc = new Location(world, cx, y + 1 + Y_OFFSET, cz);
+            if (!isFarFromRegionsFast(loc, airdropRadius)) continue;
+            if (hasLiquidAround(world, cx, cz, 4)) continue;
+
+            int heightDiff = getMaxHeightDiff(world, cx, cz, TERRAIN_CHECK_RADIUS, 6);
+            if (heightDiff <= 6 && isFlat(loc, 3)) {
+                return loc;
+            }
+        }
+        return null;
+    }
+
     public Location findSky(World world, int airdropRadius, int minAbove, int maxAbove) {
         heightCache.clear();
         regionBoxes = buildRegionBoxes(world);
-        ConfigurationSection s = plugin.getConfigManager().getConfig().getConfigurationSection("spawn");
-        int minX = s.getInt("min-x"), maxX = s.getInt("max-x");
-        int minZ = s.getInt("min-z"), maxZ = s.getInt("max-z");
 
-        for (int i = 0; i < 200; i++) {
+        Chunk[] loaded = world.getLoadedChunks();
+        if (loaded != null && loaded.length > 0) {
+            List<Chunk> shuffled = new ArrayList<>(Arrays.asList(loaded));
+            Collections.shuffle(shuffled, random);
+            for (Chunk chunk : shuffled) {
+                int x = (chunk.getX() << 4) + 8;
+                int z = (chunk.getZ() << 4) + 8;
+                if (isRecent(x, z)) continue;
+
+                int groundY = getHeight(world, x, z);
+                if (groundY < 1) continue;
+
+                int extra = minAbove + random.nextInt(maxAbove - minAbove + 1);
+                int y = groundY + extra;
+                if (y > world.getMaxHeight() - 20) y = world.getMaxHeight() - 20;
+                if (y - groundY < minAbove) continue;
+
+                Location loc = new Location(world, x, y, z);
+                if (!isFarFromRegionsFast(loc, airdropRadius)) continue;
+                if (!isAirAround(world, x, y, z, 8)) continue;
+
+                remember(loc);
+                return loc;
+            }
+        }
+
+        ConfigurationSection s = plugin.getConfigManager().getConfig().getConfigurationSection("spawn");
+        int minX = s != null ? s.getInt("min-x", -3000) : -3000;
+        int maxX = s != null ? s.getInt("max-x", 3000) : 3000;
+        int minZ = s != null ? s.getInt("min-z", -3000) : -3000;
+        int maxZ = s != null ? s.getInt("max-z", 3000) : 3000;
+
+        for (int i = 0; i < 40; i++) {
             int x = minX + random.nextInt(maxX - minX + 1);
             int z = minZ + random.nextInt(maxZ - minZ + 1);
             if (isRecent(x, z)) continue;
 
-            if (!world.isChunkLoaded(x >> 4, z >> 4)) world.getChunkAt(x >> 4, z >> 4);
+            if (!world.isChunkLoaded(x >> 4, z >> 4)) {
+                world.getChunkAt(x >> 4, z >> 4);
+            }
 
             int groundY = getHeight(world, x, z);
             if (groundY < 1) continue;
@@ -100,8 +177,10 @@ public class LocationFinder {
     private Location tryFind(World world, int airdropRadius, int maxDiff, int strictDiff,
                              boolean loadChunks, boolean ignoreRecent, int attempts) {
         ConfigurationSection s = plugin.getConfigManager().getConfig().getConfigurationSection("spawn");
-        int minX = s.getInt("min-x"), maxX = s.getInt("max-x");
-        int minZ = s.getInt("min-z"), maxZ = s.getInt("max-z");
+        int minX = s != null ? s.getInt("min-x", -3000) : -3000;
+        int maxX = s != null ? s.getInt("max-x", 3000) : 3000;
+        int minZ = s != null ? s.getInt("min-z", -3000) : -3000;
+        int maxZ = s != null ? s.getInt("max-z", 3000) : 3000;
 
         Location best = null;
 
@@ -121,7 +200,6 @@ public class LocationFinder {
             Material under = world.getBlockAt(x, y, z).getType();
             if (under == Material.WATER || under == Material.LAVA) continue;
 
-            // Cheap region check before expensive terrain scan
             Location locProbe = new Location(world, x, y + 1 + Y_OFFSET, z);
             if (!isFarFromRegionsFast(locProbe, airdropRadius)) continue;
 
@@ -144,10 +222,12 @@ public class LocationFinder {
 
     private Location tryEmergency(World world, int airdropRadius) {
         ConfigurationSection s = plugin.getConfigManager().getConfig().getConfigurationSection("spawn");
-        int minX = s.getInt("min-x"), maxX = s.getInt("max-x");
-        int minZ = s.getInt("min-z"), maxZ = s.getInt("max-z");
+        int minX = s != null ? s.getInt("min-x", -3000) : -3000;
+        int maxX = s != null ? s.getInt("max-x", 3000) : 3000;
+        int minZ = s != null ? s.getInt("min-z", -3000) : -3000;
+        int maxZ = s != null ? s.getInt("max-z", 3000) : 3000;
 
-        for (int i = 0; i < 300; i++) {
+        for (int i = 0; i < 50; i++) {
             int x = minX + random.nextInt(maxX - minX + 1);
             int z = minZ + random.nextInt(maxZ - minZ + 1);
 
@@ -202,9 +282,6 @@ public class LocationFinder {
         return false;
     }
 
-    /**
-     * Snapshot WG region bounding boxes once per search (ignores elytrix_ / global).
-     */
     private List<int[]> buildRegionBoxes(World world) {
         List<int[]> boxes = new ArrayList<>();
         try {
@@ -235,7 +312,6 @@ public class LocationFinder {
         int maxZ = loc.getBlockZ() + total;
 
         for (int[] b : regionBoxes) {
-            // AABB overlap on XZ
             if (minX <= b[1] && maxX >= b[0] && minZ <= b[3] && maxZ >= b[2]) {
                 return false;
             }

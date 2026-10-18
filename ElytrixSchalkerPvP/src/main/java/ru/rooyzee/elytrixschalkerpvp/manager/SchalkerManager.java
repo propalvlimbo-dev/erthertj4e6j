@@ -1,4 +1,5 @@
 package ru.rooyzee.elytrixschalkerpvp.manager;
+import ru.rooyzee.elytrixschalkerpvp.util.ParticleUtil;
 
 import org.bukkit.*;
 import org.bukkit.block.Block;
@@ -387,9 +388,9 @@ public class SchalkerManager {
 
         try {
             world.playSound(loc, Sound.ENTITY_GENERIC_EXPLODE, 2.0f, 0.8f);
-            world.spawnParticle(Particle.EXPLOSION_HUGE, loc, 3);
-            world.spawnParticle(Particle.FLAME, loc, 50, 2, 2, 2, 0.1);
-            world.spawnParticle(Particle.SMOKE_LARGE, loc, 30, 2, 2, 2, 0.05);
+            world.spawnParticle(ParticleUtil.HUGE_EXPLOSION, loc, 3);
+            world.spawnParticle(ParticleUtil.FLAME, loc, 50, 2, 2, 2, 0.1);
+            world.spawnParticle(ParticleUtil.LARGE_SMOKE, loc, 30, 2, 2, 2, 0.05);
         } catch (Exception ignored) {}
 
         for (Entity entity : world.getNearbyEntities(loc, radius, radius, radius)) {
@@ -437,7 +438,7 @@ public class SchalkerManager {
             if (world != null) {
                 try {
                     world.playSound(loc, Sound.ENTITY_GENERIC_EXPLODE, 2.0f, 0.8f);
-                    world.spawnParticle(Particle.EXPLOSION_HUGE, loc, 1);
+                    world.spawnParticle(ParticleUtil.HUGE_EXPLOSION, loc, 1);
                 } catch (Exception ignored) {}
             }
         }

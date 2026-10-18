@@ -1,4 +1,5 @@
 package ru.rooyzee.elytrixairdrop.airdrops.types;
+import ru.rooyzee.elytrixairdrop.utils.ParticleUtil;
 
 
 
@@ -575,7 +576,7 @@ private final long spawnTime = System.currentTimeMillis();
 
             b.setType(m, false);
 
-sh.loc.getWorld().spawnParticle(Particle.END_ROD, sh.loc.clone().add(0.5, 0.6, 0.5),
+sh.loc.getWorld().spawnParticle(ParticleUtil.END_ROD, sh.loc.clone().add(0.5, 0.6, 0.5),
                     3, 0.25, 0.25, 0.25, 0.015);
             // Sound only every other roll tick to reduce audio spam
             if (random.nextBoolean()) {
@@ -600,7 +601,7 @@ sh.loc.getWorld().spawnParticle(Particle.END_ROD, sh.loc.clone().add(0.5, 0.6, 0
 
 
 
-        sh.loc.getWorld().spawnParticle(Particle.FIREWORKS_SPARK, sh.loc.clone().add(0.5, 1, 0.5),
+        sh.loc.getWorld().spawnParticle(ParticleUtil.FIREWORKS, sh.loc.clone().add(0.5, 1, 0.5),
 
                 50, 0.5, 0.5, 0.5, 0.15);
 
@@ -659,7 +660,7 @@ sh.loc.getWorld().spawnParticle(Particle.END_ROD, sh.loc.clone().add(0.5, 0.6, 0
 
         sh.loc.getWorld().playSound(sh.loc, Sound.BLOCK_SHULKER_BOX_OPEN, 1f, 1f);
 
-        sh.loc.getWorld().spawnParticle(Particle.PORTAL, sh.loc.clone().add(0.5, 0.5, 0.5),
+        sh.loc.getWorld().spawnParticle(ParticleUtil.PORTAL, sh.loc.clone().add(0.5, 0.5, 0.5),
 
                 30, 0.5, 0.5, 0.5, 0.3);
 

@@ -1,4 +1,5 @@
 package ru.rooyzee.elytrixparadise.shards;
+import ru.rooyzee.elytrixparadise.utils.ParticleUtil;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -123,8 +124,8 @@ public class ShardManager {
 
                     World world = loc.getWorld();
                     if (world != null) {
-                        world.spawnParticle(Particle.TOTEM, loc.clone().add(0.5, 1.0, 0.5), 35, 0.4, 0.4, 0.4, 0.1);
-                        world.spawnParticle(Particle.FLASH, loc.clone().add(0.5, 1.0, 0.5), 2);
+                        world.spawnParticle(ParticleUtil.TOTEM, loc.clone().add(0.5, 1.0, 0.5), 35, 0.4, 0.4, 0.4, 0.1);
+                        world.spawnParticle(ParticleUtil.FLASH, loc.clone().add(0.5, 1.0, 0.5), 2);
                         world.playSound(loc, Sound.BLOCK_BELL_RESONATE, 1.5f, 1.2f);
                         world.playSound(loc, Sound.BLOCK_BEACON_ACTIVATE, 1.5f, 1.5f);
 
@@ -180,7 +181,7 @@ public class ShardManager {
         World world = blockLoc.getWorld();
         Location center = blockLoc.clone().add(0.5, 0.5, 0.5);
 
-        world.spawnParticle(Particle.BLOCK_CRACK, center, 20, 0.3, 0.3, 0.3, Material.RED_GLAZED_TERRACOTTA.createBlockData());
+        world.spawnParticle(ParticleUtil.BLOCK_CRACK, center, 20, 0.3, 0.3, 0.3, Material.RED_GLAZED_TERRACOTTA.createBlockData());
         world.playSound(center, Sound.BLOCK_ANVIL_USE, 0.7f, 1.8f);
 
         double roll = ThreadLocalRandom.current().nextDouble(0.0, 100.0);
@@ -251,9 +252,9 @@ public class ShardManager {
         shard.resetExplosionChance(plugin.getConfigManager().getShardBaseExplosionChance());
         shard.setShieldUntil(System.currentTimeMillis() + 3000L);
 
-        world.spawnParticle(Particle.EXPLOSION_HUGE, center, 2);
-        world.spawnParticle(Particle.FLASH, center, 2);
-        world.spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, center, 25, 0.8, 0.3, 0.8, 0.05);
+        world.spawnParticle(ParticleUtil.HUGE_EXPLOSION, center, 2);
+        world.spawnParticle(ParticleUtil.FLASH, center, 2);
+        world.spawnParticle(ParticleUtil.CAMPFIRE_SMOKE, center, 25, 0.8, 0.3, 0.8, 0.05);
 
         world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 2.0f, 0.9f);
         world.playSound(center, Sound.ITEM_TRIDENT_THUNDER, 1.8f, 1.2f);

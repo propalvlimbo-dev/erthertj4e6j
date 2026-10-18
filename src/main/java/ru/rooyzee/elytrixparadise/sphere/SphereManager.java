@@ -1,4 +1,5 @@
 package ru.rooyzee.elytrixparadise.sphere;
+import ru.rooyzee.elytrixparadise.utils.ParticleUtil;
 
 import eu.decentsoftware.holograms.api.DHAPI;
 import eu.decentsoftware.holograms.api.holograms.Hologram;
@@ -303,13 +304,13 @@ public class SphereManager {
         World world = blockLoc.getWorld();
         world.playSound(blockLoc, Sound.BLOCK_CHAIN_HIT, 1.2f, 1.0f);
         world.playSound(blockLoc, Sound.BLOCK_ANVIL_LAND, 0.4f, 1.8f);
-        world.spawnParticle(Particle.CRIT, blockLoc.clone().add(0.5, 0.5, 0.5), 10, 0.2, 0.2, 0.2, 0.1);
+        world.spawnParticle(ParticleUtil.CRIT, blockLoc.clone().add(0.5, 0.5, 0.5), 10, 0.2, 0.2, 0.2, 0.1);
 
         if (chain.isBroken()) {
             clearChainBlocks(chain);
             world.playSound(blockLoc, Sound.BLOCK_CHAIN_BREAK, 2.0f, 0.8f);
             world.playSound(blockLoc, Sound.BLOCK_ANVIL_DESTROY, 1.5f, 0.9f);
-            world.spawnParticle(Particle.LAVA, blockLoc.clone().add(0.5, 0.5, 0.5), 25, 0.4, 0.4, 0.4);
+            world.spawnParticle(ParticleUtil.LAVA, blockLoc.clone().add(0.5, 0.5, 0.5), 25, 0.4, 0.4, 0.4);
 
             removeHologram("ep_chain_" + chain.getId());
 
@@ -367,8 +368,8 @@ public class SphereManager {
 
                 world.playSound(curLoc, Sound.ENTITY_PHANTOM_SWOOP, 1.2f, 0.6f);
                 world.playSound(curLoc, Sound.BLOCK_BEACON_AMBIENT, 0.8f, 1.8f);
-                world.spawnParticle(Particle.CLOUD, curLoc.clone().add(0, -1.0, 0), 25, 1.2, 0.3, 1.2, 0.05);
-                world.spawnParticle(Particle.CRIT, curLoc.clone().add(0, 0, 0), 10, 0.8, 0.8, 0.8, 0.1);
+                world.spawnParticle(ParticleUtil.CLOUD, curLoc.clone().add(0, -1.0, 0), 25, 1.2, 0.3, 1.2, 0.05);
+                world.spawnParticle(ParticleUtil.CRIT, curLoc.clone().add(0, 0, 0), 10, 0.8, 0.8, 0.8, 0.1);
 
                 if (currentY <= endY) {
                     cancel();
@@ -381,9 +382,9 @@ public class SphereManager {
                     world.playSound(sphereFallenCenter, Sound.ENTITY_GENERIC_EXPLODE, 2.5f, 0.5f);
                     world.playSound(sphereFallenCenter, Sound.ENTITY_IRON_GOLEM_DAMAGE, 2.0f, 0.5f);
                     world.playSound(sphereFallenCenter, Sound.BLOCK_ANVIL_LAND, 2.5f, 0.4f);
-                    world.spawnParticle(Particle.EXPLOSION_LARGE, sphereFallenCenter.clone().add(0, 1, 0), 8, 1.0, 0.5, 1.0);
-                    world.spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, sphereFallenCenter.clone().add(0, 0.5, 0), 60, 2.0, 0.3, 2.0, 0.05);
-                    world.spawnParticle(Particle.SOUL_FIRE_FLAME, sphereFallenCenter.clone().add(0, 1.0, 0), 30, 1.2, 0.8, 1.2, 0.05);
+                    world.spawnParticle(ParticleUtil.LARGE_EXPLOSION, sphereFallenCenter.clone().add(0, 1, 0), 8, 1.0, 0.5, 1.0);
+                    world.spawnParticle(ParticleUtil.CAMPFIRE_SMOKE, sphereFallenCenter.clone().add(0, 0.5, 0), 60, 2.0, 0.3, 2.0, 0.05);
+                    world.spawnParticle(ParticleUtil.SOUL_FLAME, sphereFallenCenter.clone().add(0, 1.0, 0), 30, 1.2, 0.8, 1.2, 0.05);
 
                     // Таинственный и зловещий саундтрек при падении Сердца Рая
                     playMysteriousSoundscape(world, sphereFallenCenter);
@@ -438,8 +439,8 @@ public class SphereManager {
 
         world.playSound(blockLoc, Sound.BLOCK_ANVIL_USE, 0.8f, 1.5f);
         world.playSound(blockLoc, Sound.BLOCK_BEACON_POWER_SELECT, 0.8f, 1.8f);
-        world.spawnParticle(Particle.TOTEM, blockLoc.clone().add(0.5, 0.8, 0.5), 15, 0.3, 0.3, 0.3, 0.1);
-        world.spawnParticle(Particle.FLASH, blockLoc.clone().add(0.5, 0.5, 0.5), 1);
+        world.spawnParticle(ParticleUtil.TOTEM, blockLoc.clone().add(0.5, 0.8, 0.5), 15, 0.3, 0.3, 0.3, 0.1);
+        world.spawnParticle(ParticleUtil.FLASH, blockLoc.clone().add(0.5, 0.5, 0.5), 1);
 
         ExperienceOrb orb = (ExperienceOrb) world.spawn(blockLoc.clone().add(0.5, 1.0, 0.5), ExperienceOrb.class);
         orb.setExperience(ThreadLocalRandom.current().nextInt(3, 8));
@@ -488,8 +489,8 @@ public class SphereManager {
         World world = sphereFallenCenter.getWorld();
         Location center = sphereFallenCenter.clone().add(0.5, 1.5, 0.5);
 
-        world.spawnParticle(Particle.EXPLOSION_HUGE, center, 3);
-        world.spawnParticle(Particle.FLASH, center, 2);
+        world.spawnParticle(ParticleUtil.HUGE_EXPLOSION, center, 3);
+        world.spawnParticle(ParticleUtil.FLASH, center, 2);
         world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 2.5f, 0.9f);
         world.playSound(center, Sound.ITEM_TRIDENT_THUNDER, 2.0f, 1.2f);
         world.playSound(center, Sound.ITEM_SHIELD_BLOCK, 1.5f, 0.8f);
@@ -556,8 +557,8 @@ public class SphereManager {
 
                 world.playSound(curLoc, Sound.BLOCK_BEACON_AMBIENT, 1.5f, 1.5f);
                 world.playSound(curLoc, Sound.ENTITY_SHULKER_BULLET_HIT, 1.0f, 1.2f);
-                world.spawnParticle(Particle.PORTAL, curLoc.clone().add(0, 0, 0), 30, 1.2, 1.2, 1.2, 0.1);
-                world.spawnParticle(Particle.TOTEM, curLoc.clone().add(0, -1, 0), 15, 0.8, 0.5, 0.8, 0.05);
+                world.spawnParticle(ParticleUtil.PORTAL, curLoc.clone().add(0, 0, 0), 30, 1.2, 1.2, 1.2, 0.1);
+                world.spawnParticle(ParticleUtil.TOTEM, curLoc.clone().add(0, -1, 0), 15, 0.8, 0.5, 0.8, 0.05);
 
                 if (currentY >= targetY) {
                     cancel();
@@ -599,7 +600,7 @@ public class SphereManager {
                         b.setType(Material.CHAIN, false);
                     }
                     world.playSound(bLoc, Sound.ITEM_ARMOR_EQUIP_CHAIN, 1.2f, 1.2f);
-                    world.spawnParticle(Particle.CRIT_MAGIC, bLoc.clone().add(0.5, 0.5, 0.5), 6, 0.2, 0.2, 0.2, 0.05);
+                    world.spawnParticle(ParticleUtil.MAGIC_CRIT, bLoc.clone().add(0.5, 0.5, 0.5), 6, 0.2, 0.2, 0.2, 0.05);
                     blockIndex++;
                 } else {
                     chain.reset();

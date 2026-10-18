@@ -1,4 +1,5 @@
 package ru.rooyzee.elytrixairdrop.airdrops.types;
+import ru.rooyzee.elytrixairdrop.utils.ParticleUtil;
 
 import org.bukkit.*;
 import org.bukkit.block.Block;
@@ -235,7 +236,7 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
         Location norm = normalize(loc);
         breakable.remove(norm);
         for (Meteor m : meteors.values()) m.blocks.remove(norm);
-        loc.getWorld().spawnParticle(Particle.BLOCK_CRACK, loc.clone().add(0.5, 0.5, 0.5),
+        loc.getWorld().spawnParticle(ParticleUtil.BLOCK_CRACK, loc.clone().add(0.5, 0.5, 0.5),
                 15, 0.3, 0.3, 0.3, 0.1, Bukkit.createBlockData(Material.OBSIDIAN));
     }
 
@@ -347,7 +348,7 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
             }
         }
 
-        broadcastParticle(w, Particle.REDSTONE, target.clone().add(0.5, 0.5, 0.5), 100, 3, 0.2, 3, 0,
+        broadcastParticle(w, ParticleUtil.DUST_PARTICLE, target.clone().add(0.5, 0.5, 0.5), 100, 3, 0.2, 3, 0,
                 new Particle.DustOptions(Color.fromRGB(248, 190, 251), 3f));
 
         animateMeteor(plugin, w, target);
@@ -382,10 +383,10 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
             }
 
             Location head = new Location(w, core.getX(), currentY[0], core.getZ());
-            broadcastParticle(w, Particle.FLAME, head, 30, 0.8, 0.8, 0.8, 0.05, null);
-            broadcastParticle(w, Particle.LAVA, head, 10, 0.6, 0.6, 0.6, 0.02, null);
-            broadcastParticle(w, Particle.CAMPFIRE_COSY_SMOKE, head, 15, 0.5, 0.5, 0.5, 0.02, null);
-            broadcastParticle(w, Particle.SMOKE_LARGE, head, 12, 0.7, 0.7, 0.7, 0.03, null);
+            broadcastParticle(w, ParticleUtil.FLAME, head, 30, 0.8, 0.8, 0.8, 0.05, null);
+            broadcastParticle(w, ParticleUtil.LAVA, head, 10, 0.6, 0.6, 0.6, 0.02, null);
+            broadcastParticle(w, ParticleUtil.CAMPFIRE_SMOKE, head, 15, 0.5, 0.5, 0.5, 0.02, null);
+            broadcastParticle(w, ParticleUtil.LARGE_SMOKE, head, 12, 0.7, 0.7, 0.7, 0.03, null);
 
             for (Player p : Bukkit.getOnlinePlayers()) {
                 if (p.getWorld().equals(w) && p.getLocation().distanceSquared(head) <= 60 * 60) {
@@ -401,10 +402,10 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
         Location core = target.clone().add(0, SPHERE_RADIUS, 0);
         Location visualCenter = core.clone().add(0.5, 0, 0.5);
 
-        broadcastParticle(w, Particle.EXPLOSION_HUGE, visualCenter, 3, 1.5, 0.8, 1.5, 0, null);
-        broadcastParticle(w, Particle.LAVA, visualCenter, 50, 3, 1.5, 3, 0, null);
-        broadcastParticle(w, Particle.FLAME, visualCenter, 80, 4, 1.5, 4, 0.2, null);
-        broadcastParticle(w, Particle.SMOKE_LARGE, visualCenter, 40, 4, 1.5, 4, 0.1, null);
+        broadcastParticle(w, ParticleUtil.HUGE_EXPLOSION, visualCenter, 3, 1.5, 0.8, 1.5, 0, null);
+        broadcastParticle(w, ParticleUtil.LAVA, visualCenter, 50, 3, 1.5, 3, 0, null);
+        broadcastParticle(w, ParticleUtil.FLAME, visualCenter, 80, 4, 1.5, 4, 0.2, null);
+        broadcastParticle(w, ParticleUtil.LARGE_SMOKE, visualCenter, 40, 4, 1.5, 4, 0.1, null);
 
         for (Player p : Bukkit.getOnlinePlayers()) {
             if (!p.getWorld().equals(w)) continue;
@@ -455,7 +456,7 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
                     meteor.craterBlocks.add(l);
 
                     if (dy == 0) {
-                        w.spawnParticle(Particle.BLOCK_CRACK, l.clone().add(0.5, 0.5, 0.5),
+                        w.spawnParticle(ParticleUtil.BLOCK_CRACK, l.clone().add(0.5, 0.5, 0.5),
                                 12, 0.4, 0.4, 0.4, 0.1, b.getBlockData());
                     }
                     b.setType(Material.AIR, false);
@@ -595,7 +596,7 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
                     b.setType(Material.OBSIDIAN, false);
                     breakable.add(loc);
 
-                    broadcastParticle(w, Particle.SMOKE_NORMAL, loc.clone().add(0.5, 0.5, 0.5),
+                    broadcastParticle(w, ParticleUtil.NORMAL_SMOKE, loc.clone().add(0.5, 0.5, 0.5),
                             4, 0.15, 0.05, 0.15, 0.01, null);
 
                     for (Player p : Bukkit.getOnlinePlayers()) {
@@ -619,7 +620,7 @@ public class ActiveFireAirdrop extends ActiveAirdrop {
                 plugin.getConfigManager().getConfig().getConfigurationSection("airdrops.fire"));
         chests.put(m.chestLoc, inv);
 
-        broadcastParticle(w, Particle.PORTAL, m.center.clone().add(0.5, 0.5, 0.5),
+        broadcastParticle(w, ParticleUtil.PORTAL, m.center.clone().add(0.5, 0.5, 0.5),
                 30, 0.6, 0.6, 0.6, 0.4, null);
 
         for (Player p : Bukkit.getOnlinePlayers()) {

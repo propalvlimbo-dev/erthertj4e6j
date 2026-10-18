@@ -1,4 +1,5 @@
 package ru.rooyzee.elytrixairdrop.managers;
+import ru.rooyzee.elytrixairdrop.utils.ParticleUtil;
 
 import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.WorldEdit;
@@ -232,7 +233,7 @@ public class SchematicManager {
                             double ddz = e.getKey().getBlockZ() - cZ;
                             if (ddx * ddx + ddz * ddz > 4) {
                                 Location particleLoc = e.getKey().clone().add(0.5, 0.5, 0.5);
-                                b.getWorld().spawnParticle(Particle.CLOUD, particleLoc, 2, 0.2, 0.2, 0.2, 0.02);
+                                b.getWorld().spawnParticle(ParticleUtil.CLOUD, particleLoc, 2, 0.2, 0.2, 0.2, 0.02);
                                 particleBudget--;
                             }
                         }
