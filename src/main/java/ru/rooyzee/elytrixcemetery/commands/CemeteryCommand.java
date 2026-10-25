@@ -41,7 +41,7 @@ public class CemeteryCommand implements CommandExecutor, TabCompleter {
                 Player p = (Player) sender;
                 Location center = plugin.getConfigManager().getCenterLocation();
                 if (center != null) {
-                    p.teleport(center.clone().add(0.5, 1, -18.5));
+                    p.teleport(center.clone().add(0.5, 1, -25.5));
                     p.sendMessage(ColorUtil.colorize("&f☁ &#F8BEFBᴇʟʏᴛʀɪx &7» &aВы успешно телепортированы на &fКладбище&a!"));
                 } else {
                     p.sendMessage(ColorUtil.colorize("&f☁ &#F8BEFBᴇʟʏᴛʀɪx &7» &cЛокация кладбища не настроена!"));
@@ -98,6 +98,7 @@ public class CemeteryCommand implements CommandExecutor, TabCompleter {
                 sender.sendMessage(ColorUtil.colorize(plugin.getConfigManager().getAdminPrefix() + "&aВсе могилы успешно закопаны, лут обновлён!"));
                 break;
 
+            case "paste":
             case "respawn":
             case "generate":
                 if (!sender.hasPermission("elytrixcemetery.admin")) {
@@ -105,7 +106,20 @@ public class CemeteryCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 plugin.getSchematicManager().buildOrPasteCemetery();
+                plugin.getRegionManager().createOrUpdateRegion();
                 sender.sendMessage(ColorUtil.colorize(plugin.getConfigManager().getAdminPrefix() + "&aПостройка кладбища успешно пересоздана!"));
+                break;
+
+            case "clear":
+                if (!sender.hasPermission("elytrixcemetery.admin")) {
+                    sender.sendMessage(ColorUtil.colorize(plugin.getConfigManager().getAdminPrefix() + "&cУ вас нет прав!"));
+                    return true;
+                }
+                plugin.getGraveManager().clearAll();
+                plugin.getGhostController().clearAll();
+                plugin.getSchematicManager().getGenerator().clearCemeteryBlocks();
+                plugin.getRegionManager().removeRegion();
+                sender.sendMessage(ColorUtil.colorize(plugin.getConfigManager().getAdminPrefix() + "&aКладбище, призраки и все постройки успешно удалены!"));
                 break;
 
             case "reload":
@@ -136,7 +150,8 @@ public class CemeteryCommand implements CommandExecutor, TabCompleter {
         if (sender.hasPermission("elytrixcemetery.admin")) {
             sender.sendMessage(ColorUtil.colorize("&#F8BEFB&l┃ &f/cemetery loot <graves|ghosts> &8— &#F8BEFBРедактирование лута"));
             sender.sendMessage(ColorUtil.colorize("&#F8BEFB&l┃ &f/cemetery refill &8— &#F8BEFBЗакопать могилы и обновить лут"));
-            sender.sendMessage(ColorUtil.colorize("&#F8BEFB&l┃ &f/cemetery respawn &8— &#F8BEFBПересоздать постройку"));
+            sender.sendMessage(ColorUtil.colorize("&#F8BEFB&l┃ &f/cemetery paste &8— &#F8BEFBВставить/сгенерировать кладбище"));
+            sender.sendMessage(ColorUtil.colorize("&#F8BEFB&l┃ &f/cemetery clear &8— &#F8BEFBПолная очистка построек и призраков"));
             sender.sendMessage(ColorUtil.colorize("&#F8BEFB&l┃ &f/cemetery reload &8— &#F8BEFBПерезагрузка плагина"));
         }
         sender.sendMessage("");
@@ -147,7 +162,7 @@ public class CemeteryCommand implements CommandExecutor, TabCompleter {
         if (args.length == 1) {
             List<String> list = new ArrayList<>(Arrays.asList("tp", "info", "actionbar"));
             if (sender.hasPermission("elytrixcemetery.admin")) {
-                list.addAll(Arrays.asList("loot", "refill", "respawn", "reload"));
+                list.addAll(Arrays.asList("loot", "refill", "paste", "clear", "reload"));
             }
             return list;
         }

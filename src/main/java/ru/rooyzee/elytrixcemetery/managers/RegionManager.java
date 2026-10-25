@@ -40,12 +40,15 @@ public class RegionManager {
             region.setPriority(100);
             region.setFlag(Flags.PVP, StateFlag.State.ALLOW);
             region.setFlag(Flags.MOB_SPAWNING, StateFlag.State.ALLOW);
+            region.setFlag(Flags.CHEST_ACCESS, StateFlag.State.ALLOW);
+            region.setFlag(Flags.USE, StateFlag.State.ALLOW);
+            region.setFlag(Flags.INTERACT, StateFlag.State.ALLOW);
             region.setFlag(Flags.CREEPER_EXPLOSION, StateFlag.State.DENY);
             region.setFlag(Flags.TNT, StateFlag.State.DENY);
             region.setFlag(Flags.OTHER_EXPLOSION, StateFlag.State.DENY);
 
             rm.addRegion(region);
-            plugin.getLogger().info("Регион Кладбища " + REGION_NAME + " успешно зарегистрирован в WorldGuard.");
+            plugin.getLogger().info("Регион Кладбища " + REGION_NAME + " успешно зарегистрирован в WorldGuard с доступом к сундукам.");
         } catch (Throwable t) {
             plugin.getLogger().warning("WorldGuard hook not loaded or unavailable: " + t.getMessage());
         }

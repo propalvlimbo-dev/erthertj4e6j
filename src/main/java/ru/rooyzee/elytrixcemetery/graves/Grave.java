@@ -8,6 +8,7 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.Chest;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import ru.rooyzee.elytrixcemetery.Main;
 import ru.rooyzee.elytrixcemetery.utils.ColorUtil;
@@ -15,6 +16,7 @@ import ru.rooyzee.elytrixcemetery.utils.ParticleUtil;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class Grave {
 
@@ -25,7 +27,7 @@ public class Grave {
 
     private boolean dug = false;
     private long dugAt = 0L;
-    private String hologramName;
+    private final String hologramName;
 
     public Grave(int id, Location digLocation, Location chestLocation, Location hologramLocation) {
         this.id = id;
@@ -66,19 +68,34 @@ public class Grave {
 
         if (cb.getState() instanceof Chest) {
             Chest chest = (Chest) cb.getState();
-            chest.getInventory().clear();
+            Inventory inv = chest.getInventory();
+            inv.clear();
 
             int online = Bukkit.getOnlinePlayers().size();
             List<ItemStack> loot = plugin.getLootStorageManager().rollGraveDrops(online);
 
+            ThreadLocalRandom rng = ThreadLocalRandom.current();
+            int size = inv.getSize();
             for (ItemStack item : loot) {
                 if (item != null && item.getType() != Material.AIR) {
-                    chest.getInventory().addItem(item.clone());
+                    for (int tries = 0; tries < 10; tries++) {
+                        int slot = rng.nextInt(size);
+                        if (inv.getItem(slot) == null || inv.getItem(slot).getType() == Material.AIR) {
+                            inv.setItem(slot, item.clone());
+                            break;
+                        }
+                    }
                 }
             }
         }
 
-        // 3. Звуки и эффекты раскопки
+        // 3. Шанс на появление мощного визер-скелета (Осквернённого Стража)
+        double guardianChance = 25.0;
+        if (ThreadLocalRandom.current().nextDouble(0.0, 100.0) <= guardianChance) {
+            plugin.getGhostController().spawnGuardian(digLocation, player, this);
+        }
+
+        // 4. Звуки и эффекты раскопки
         world.playSound(digLocation, Sound.ITEM_SHOVEL_FLATTEN, 1.2f, 0.8f);
         world.playSound(digLocation, Sound.BLOCK_GRAVEL_BREAK, 1.0f, 1.2f);
         world.playSound(digLocation, Sound.ENTITY_ZOMBIE_BREAK_WOODEN_DOOR, 0.6f, 0.6f);
@@ -88,6 +105,15 @@ public class Grave {
 
         updateHologram(plugin);
         return true;
+    }
+
+    public void openChestFor(Player player) {
+        Block cb = chestLocation.getBlock();
+        if (cb.getState() instanceof Chest) {
+            Chest chest = (Chest) cb.getState();
+            player.openInventory(chest.getInventory());
+            player.playSound(chestLocation, Sound.BLOCK_CHEST_OPEN, 1.0f, 1.0f);
+        }
     }
 
     public void bury(Main plugin) {
@@ -137,15 +163,13 @@ public class Grave {
     private List<String> buildHoloLines(Main plugin) {
         if (!dug) {
             return java.util.Arrays.asList(
-                    ColorUtil.colorize("&#F8BEFB&lМОГИЛА #" + id),
-                    ColorUtil.colorize("• &#F8BEFBСтатус: &aЗакопана"),
-                    ColorUtil.colorize("• &#F8BEFBИнструмент: &fЛопата")
+                    ColorUtil.colorize("&#F8BEFB&lДревняя могила"),
+                    ColorUtil.colorize("&7Вскопайте лопатой")
             );
         } else {
             return java.util.Arrays.asList(
-                    ColorUtil.colorize("&#F8BEFB&lМОГИЛА #" + id),
-                    ColorUtil.colorize("• &#F8BEFBСтатус: &cРаскопана"),
-                    ColorUtil.colorize("• &#F8BEFBЗакопается: &fСкоро")
+                    ColorUtil.colorize("&#96FF91&lМогила раскопана"),
+                    ColorUtil.colorize("&7Сундук открыт")
             );
         }
     }

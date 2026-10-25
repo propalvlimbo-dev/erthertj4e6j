@@ -53,7 +53,7 @@ public class ConfigManager {
     }
 
     public int getBoundaryRadius() {
-        return config.getInt("boundary-radius", 25);
+        return config.getInt("boundary-radius", 50);
     }
 
     public int getRefillIntervalSeconds() {

@@ -104,6 +104,10 @@ public class Main extends JavaPlugin {
         if (hologramManager != null) hologramManager.removeMainHologram();
         if (graveManager != null) graveManager.clearAll();
         if (ghostController != null) ghostController.clearAll();
+        if (schematicManager != null && schematicManager.getGenerator() != null) {
+            schematicManager.getGenerator().clearCemeteryBlocks();
+        }
+        if (regionManager != null) regionManager.removeRegion();
 
         getLogger().info("ElytrixCemetery выключен.");
     }

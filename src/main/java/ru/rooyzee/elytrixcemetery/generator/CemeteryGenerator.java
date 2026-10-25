@@ -8,17 +8,20 @@ import ru.rooyzee.elytrixcemetery.Main;
 import ru.rooyzee.elytrixcemetery.graves.Grave;
 import ru.rooyzee.elytrixcemetery.util.MaterialUtil;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 public class CemeteryGenerator {
 
     private final Main plugin;
     private final Random random = new Random();
+    private final Set<Location> modifiedBlocks = Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<Location, Boolean>());
 
     public CemeteryGenerator(Main plugin) {
         this.plugin = plugin;
+    }
+
+    public Set<Location> getModifiedBlocks() {
+        return modifiedBlocks;
     }
 
     public List<Grave> generateCemetery(Location center) {
@@ -26,120 +29,79 @@ public class CemeteryGenerator {
         World world = center.getWorld();
         if (world == null) return graves;
 
+        modifiedBlocks.clear();
         int cx = center.getBlockX();
-        int cy = center.getBlockY();
         int cz = center.getBlockZ();
-        int radius = 20;
+        int radius = 45;
 
+        Material wallMat = MaterialUtil.match("POLISHED_BLACKSTONE_WALL", "COBBLESTONE_WALL");
+        Material brickMat = MaterialUtil.getDeepslateBrickMaterial();
         Material pathMat = MaterialUtil.getPathMaterial();
 
-        // 1. Выравнивание площадки и установка грунта (41x41)
-        for (int dx = -radius; dx <= radius; dx++) {
-            for (int dz = -radius; dz <= radius; dz++) {
-                int wx = cx + dx;
-                int wz = cz + dz;
-
-                // Базовый грунт
-                Block base = world.getBlockAt(wx, cy, wz);
-                base.setType(random.nextDouble() < 0.6 ? Material.GRASS_BLOCK : (random.nextBoolean() ? Material.PODZOL : Material.COARSE_DIRT), false);
-
-                // Заполняем под землей камнем/землей
-                for (int dy = -1; dy >= -3; dy--) {
-                    world.getBlockAt(wx, cy + dy, wz).setType(Material.DIRT, false);
-                }
-
-                // Очищаем воздух над землей
-                for (int dy = 1; dy <= 8; dy++) {
-                    world.getBlockAt(wx, cy + dy, wz).setType(Material.AIR, false);
-                }
-            }
-        }
-
-        // 2. Внешняя каменная стена и решетки по периметру
+        // 1. Внешняя ограда по периметру (следует рельефу местности)
         for (int i = -radius; i <= radius; i++) {
-            // Северная и Южная стены
-            buildWallPillar(world, cx + i, cy, cz - radius, (i % 4 == 0));
-            buildWallPillar(world, cx + i, cy, cz + radius, (i % 4 == 0));
-            // Западная и Восточная стены
-            buildWallPillar(world, cx - radius, cy, cz + i, (i % 4 == 0));
-            buildWallPillar(world, cx + radius, cy, cz + i, (i % 4 == 0));
+            // Север / Юг
+            buildPerimeterSegment(world, cx + i, cz - radius, wallMat, brickMat, (i % 6 == 0));
+            buildPerimeterSegment(world, cx + i, cz + radius, wallMat, brickMat, (i % 6 == 0));
+            // Запад / Восток
+            buildPerimeterSegment(world, cx - radius, cz + i, wallMat, brickMat, (i % 6 == 0));
+            buildPerimeterSegment(world, cx + radius, cz + i, wallMat, brickMat, (i % 6 == 0));
         }
 
-        // 3. Главные входные ворота с аркой (Юг / Z = -radius)
+        // 2. Входные ворота (Юг: X = cx, Z = cz - radius)
+        int gateZ = cz - radius;
         for (int dx = -2; dx <= 2; dx++) {
-            world.getBlockAt(cx + dx, cy + 1, cz - radius).setType(Material.AIR, false);
-            world.getBlockAt(cx + dx, cy + 2, cz - radius).setType(Material.AIR, false);
-            world.getBlockAt(cx + dx, cy, cz - radius).setType(pathMat, false);
-        }
-        // Арка над входом
-        Material brickMat = MaterialUtil.getDeepslateBrickMaterial();
-        Material slabMat = MaterialUtil.getDeepslateSlabMaterial();
-        world.getBlockAt(cx - 2, cy + 3, cz - radius).setType(brickMat, false);
-        world.getBlockAt(cx + 2, cy + 3, cz - radius).setType(brickMat, false);
-        world.getBlockAt(cx - 1, cy + 3, cz - radius).setType(slabMat, false);
-        world.getBlockAt(cx + 1, cy + 3, cz - radius).setType(slabMat, false);
-        world.getBlockAt(cx, cy + 4, cz - radius).setType(brickMat, false);
-        world.getBlockAt(cx - 2, cy + 4, cz - radius).setType(Material.SOUL_LANTERN, false);
-        world.getBlockAt(cx + 2, cy + 4, cz - radius).setType(Material.SOUL_LANTERN, false);
-
-        // 4. Главная дорожка от входа до склепа
-        for (int z = -radius; z <= 10; z++) {
-            for (int dx = -1; dx <= 1; dx++) {
-                Block b = world.getBlockAt(cx + dx, cy, cz + z);
-                b.setType(random.nextDouble() < 0.7 ? pathMat : Material.COARSE_DIRT, false);
-            }
-        }
-        // Боковые дорожки к могилам
-        int[] sideZ = {-12, -6, 0, 6};
-        for (int sz : sideZ) {
-            for (int dx = -16; dx <= 16; dx++) {
-                Block b = world.getBlockAt(cx + dx, cy, cz + sz);
-                if (b.getType() != pathMat) {
-                    b.setType(Material.COARSE_DIRT, false);
-                }
-            }
+            int y = findSurfaceY(world, cx + dx, gateZ);
+            setBlock(world, cx + dx, y + 1, gateZ, Material.AIR);
+            setBlock(world, cx + dx, y + 2, gateZ, Material.AIR);
+            setBlock(world, cx + dx, y, gateZ, pathMat);
         }
 
-        // 5. Задний Склеп / Мавзолей (Z = 12..18, X = -4..4)
-        buildCrypt(world, cx, cy, cz + 14);
+        // 3. 20 Пространственно разнесенных могил (дистанция 15-20 блоков между каждой)
+        int[][] graveOffsets = {
+                {-32, -32}, {-16, -34}, {0, -32}, {18, -34}, {34, -30},
+                {-36, -16}, {-18, -16}, {-4, -14}, {16, -16}, {34, -14},
+                {-34, 12},  {-16, 14},  {2, 12},   {18, 14},  {35, 12},
+                {-32, 32},  {-14, 34},  {0, 32},   {18, 34},  {32, 30}
+        };
 
-        // 6. Генерация ровно 20 атмосферных могил
         int graveId = 1;
-        int[] xOffsets = {-14, -9, -5, 5, 9, 14};
-        int[] zOffsets = {-15, -9, -3, 3};
+        for (int[] offset : graveOffsets) {
+            int gx = cx + offset[0];
+            int gz = cz + offset[1];
+            int gy = findSurfaceY(world, gx, gz);
 
-        for (int xOff : xOffsets) {
-            for (int zOff : zOffsets) {
-                if (graves.size() >= 20) break;
-                // Пропускаем центр дорожки
-                if (Math.abs(xOff) < 3) continue;
+            Grave grave = buildGrave(world, gx, gy, gz, graveId++);
+            graves.add(grave);
 
-                int gx = cx + xOff;
-                int gz = cz + zOff;
-
-                Grave grave = buildGrave(world, gx, cy, gz, graveId++);
-                graves.add(grave);
-            }
-            if (graves.size() >= 20) break;
+            // Прокладываем атмосферную тропинку к могиле
+            buildPathTo(world, cx, cz, gx, gz, pathMat);
         }
 
-        // 7. Жуткие деревья и растительность
-        buildSpookyTree(world, cx - 12, cy, cz - 8);
-        buildSpookyTree(world, cx + 12, cy, cz - 8);
-        buildSpookyTree(world, cx - 12, cy, cz + 8);
-        buildSpookyTree(world, cx + 12, cy, cz + 8);
+        // 4. Жуткие деревья и фонари душ
+        int[][] treeOffsets = {
+                {-26, -24}, {26, -24}, {-26, 24}, {26, 24},
+                {-10, -2}, {10, -2}, {0, 20}
+        };
+        for (int[] to : treeOffsets) {
+            int tx = cx + to[0];
+            int tz = cz + to[1];
+            int ty = findSurfaceY(world, tx, tz);
+            buildSpookyTree(world, tx, ty, tz);
+        }
 
-        // Растительность (Цветы, сухие кусты, роза иссушителя)
-        for (int dx = -radius + 1; dx <= radius - 1; dx++) {
-            for (int dz = -radius + 1; dz <= radius - 1; dz++) {
-                Block floor = world.getBlockAt(cx + dx, cy, cz + dz);
-                Block above = world.getBlockAt(cx + dx, cy + 1, cz + dz);
-                if (floor.getType() == Material.GRASS_BLOCK && above.getType() == Material.AIR) {
+        // 5. Растительность кладбища (розы иссушителя, сухие кусты)
+        for (int dx = -radius + 3; dx <= radius - 3; dx += 3) {
+            for (int dz = -radius + 3; dz <= radius - 3; dz += 3) {
+                int wx = cx + dx + random.nextInt(3) - 1;
+                int wz = cz + dz + random.nextInt(3) - 1;
+                int wy = findSurfaceY(world, wx, wz);
+                Block floor = world.getBlockAt(wx, wy, wz);
+                Block above = world.getBlockAt(wx, wy + 1, wz);
+                if (floor.getType().isSolid() && above.getType() == Material.AIR) {
                     double r = random.nextDouble();
-                    if (r < 0.05) above.setType(Material.WITHER_ROSE, false);
-                    else if (r < 0.12) above.setType(Material.DEAD_BUSH, false);
-                    else if (r < 0.20) above.setType(Material.POPPY, false);
-                    else if (r < 0.28) above.setType(Material.FERN, false);
+                    if (r < 0.08) setBlock(world, wx, wy + 1, wz, Material.WITHER_ROSE);
+                    else if (r < 0.18) setBlock(world, wx, wy + 1, wz, Material.DEAD_BUSH);
                 }
             }
         }
@@ -147,100 +109,131 @@ public class CemeteryGenerator {
         return graves;
     }
 
-    private void buildWallPillar(World world, int x, int y, int z, boolean isPillar) {
-        Material brickMat = MaterialUtil.getDeepslateBrickMaterial();
-        Material wallMat = MaterialUtil.match("POLISHED_BLACKSTONE_WALL", "COBBLESTONE_WALL");
+    private void buildPerimeterSegment(World world, int x, int z, Material wallMat, Material brickMat, boolean isPillar) {
+        int y = findSurfaceY(world, x, z);
         if (isPillar) {
-            world.getBlockAt(x, y + 1, z).setType(brickMat, false);
-            world.getBlockAt(x, y + 2, z).setType(brickMat, false);
-            world.getBlockAt(x, y + 3, z).setType(wallMat, false);
-            world.getBlockAt(x, y + 4, z).setType(Material.SOUL_LANTERN, false);
+            setBlock(world, x, y + 1, z, brickMat);
+            setBlock(world, x, y + 2, z, brickMat);
+            setBlock(world, x, y + 3, z, wallMat);
+            setBlock(world, x, y + 4, z, Material.SOUL_LANTERN);
         } else {
-            world.getBlockAt(x, y + 1, z).setType(brickMat, false);
-            world.getBlockAt(x, y + 2, z).setType(Material.IRON_BARS, false);
+            setBlock(world, x, y + 1, z, brickMat);
+            setBlock(world, x, y + 2, z, Material.IRON_BARS);
         }
-    }
-
-    private void buildCrypt(World world, int cx, int cy, int cz) {
-        Material brick = MaterialUtil.getDeepslateBrickMaterial();
-        Material cracked = MaterialUtil.getCrackedDeepslateBrickMaterial();
-        Material slab = MaterialUtil.getDeepslateSlabMaterial();
-        Material wall = MaterialUtil.match("POLISHED_BLACKSTONE_WALL", "COBBLESTONE_WALL");
-        Material chiseled = MaterialUtil.match("CHISELED_POLISHED_BLACKSTONE", "CHISELED_STONE_BRICKS");
-
-        // Стены склепа (7x6)
-        for (int x = -3; x <= 3; x++) {
-            for (int z = -2; z <= 3; z++) {
-                for (int y = 1; y <= 4; y++) {
-                    Material m = (x == -3 || x == 3 || z == -2 || z == 3) ?
-                            (random.nextDouble() < 0.7 ? brick : cracked) : Material.AIR;
-                    world.getBlockAt(cx + x, cy + y, cz + z).setType(m, false);
-                }
-                // Крыша
-                world.getBlockAt(cx + x, cy + 5, cz + z).setType(slab, false);
-            }
-        }
-        // Вход в склеп
-        world.getBlockAt(cx, cy + 1, cz - 2).setType(Material.AIR, false);
-        world.getBlockAt(cx, cy + 2, cz - 2).setType(Material.AIR, false);
-        world.getBlockAt(cx - 1, cy + 1, cz - 2).setType(wall, false);
-        world.getBlockAt(cx + 1, cy + 1, cz - 2).setType(wall, false);
-
-        // Алтарь вечного огня в центре склепа
-        world.getBlockAt(cx, cy + 1, cz + 1).setType(chiseled, false);
-        world.getBlockAt(cx, cy + 2, cz + 1).setType(Material.SOUL_CAMPFIRE, false);
     }
 
     private Grave buildGrave(World world, int x, int y, int z, int id) {
         Material wall = MaterialUtil.match("POLISHED_BLACKSTONE_WALL", "COBBLESTONE_WALL");
         Material rootedDirt = MaterialUtil.getRootedDirtMaterial();
 
-        // 1. Надгробный крест (Stone Wall)
-        world.getBlockAt(x, y + 1, z - 1).setType(wall, false);
-        world.getBlockAt(x, y + 2, z - 1).setType(wall, false);
-        world.getBlockAt(x - 1, y + 2, z - 1).setType(wall, false);
-        world.getBlockAt(x + 1, y + 2, z - 1).setType(wall, false);
+        // 1. Полноценный готический крест (высота 3 блока + горизонтальная перекладина)
+        // Ножка креста
+        setBlock(world, x, y + 1, z - 1, wall);
+        // Центр перекрестия
+        setBlock(world, x, y + 2, z - 1, wall);
+        // Левое и правое плечо креста
+        setBlock(world, x - 1, y + 2, z - 1, wall);
+        setBlock(world, x + 1, y + 2, z - 1, wall);
+        // Верхушка креста
+        setBlock(world, x, y + 3, z - 1, wall);
 
         // 2. Насыпь могилы (земля/подзол)
         Block surfaceBlock = world.getBlockAt(x, y, z);
         Block surfaceBlock2 = world.getBlockAt(x, y, z + 1);
-        surfaceBlock.setType(Material.COARSE_DIRT, false);
-        surfaceBlock2.setType(rootedDirt, false);
+        setBlock(world, x, y, z, Material.COARSE_DIRT);
+        setBlock(world, x, y, z + 1, rootedDirt);
 
         // 3. Подземный сундук под могилой (y - 1)
         Block chestBlock = world.getBlockAt(x, y - 1, z);
-        chestBlock.setType(Material.CHEST, false);
+        setBlock(world, x, y - 1, z, Material.CHEST);
 
-        // Блок под второй частью могилы
-        world.getBlockAt(x, y - 1, z + 1).setType(Material.DIRT, false);
+        // Дно могилы
+        setBlock(world, x, y - 1, z + 1, Material.DIRT);
 
         Location digLoc = surfaceBlock.getLocation();
         Location chestLoc = chestBlock.getLocation();
-        Location holoLoc = new Location(world, x + 0.5, y + 2.4, z + 0.5);
+        // Голограмма над могилой (ровно над сундуком на высоте +2.6 блока)
+        Location holoLoc = new Location(world, x + 0.5, y + 2.6, z + 0.5);
 
         return new Grave(id, digLoc, chestLoc, holoLoc);
     }
 
-    private void buildSpookyTree(World world, int x, int y, int z) {
-        // Ствол
-        for (int dy = 1; dy <= 4; dy++) {
-            world.getBlockAt(x, y + dy, z).setType(Material.DARK_OAK_LOG, false);
+    private void buildPathTo(World world, int startX, int startZ, int endX, int endZ, Material pathMat) {
+        int steps = Math.max(Math.abs(endX - startX), Math.abs(endZ - startZ));
+        if (steps == 0) return;
+        for (int i = 0; i <= steps; i += 2) {
+            double progress = (double) i / steps;
+            int x = (int) Math.round(startX + (endX - startX) * progress);
+            int z = (int) Math.round(startZ + (endZ - startZ) * progress);
+            int y = findSurfaceY(world, x, z);
+            Block b = world.getBlockAt(x, y, z);
+            if (b.getType() != Material.CHEST && b.getType() != MaterialUtil.match("POLISHED_BLACKSTONE_WALL", "COBBLESTONE_WALL")) {
+                setBlock(world, x, y, z, random.nextDouble() < 0.6 ? pathMat : Material.COARSE_DIRT);
+            }
         }
-        world.getBlockAt(x + 1, y + 4, z).setType(Material.DARK_OAK_LOG, false);
-        world.getBlockAt(x - 1, y + 5, z).setType(Material.DARK_OAK_LOG, false);
+    }
 
-        // Листва
+    private void buildSpookyTree(World world, int x, int y, int z) {
+        for (int dy = 1; dy <= 4; dy++) {
+            setBlock(world, x, y + dy, z, Material.DARK_OAK_LOG);
+        }
+        setBlock(world, x + 1, y + 4, z, Material.DARK_OAK_LOG);
+        setBlock(world, x - 1, y + 5, z, Material.DARK_OAK_LOG);
+
         for (int dx = -2; dx <= 2; dx++) {
             for (int dz = -2; dz <= 2; dz++) {
                 for (int dy = 4; dy <= 6; dy++) {
                     if (random.nextDouble() < 0.6) {
                         Block b = world.getBlockAt(x + dx, y + dy, z + dz);
                         if (b.getType() == Material.AIR) {
-                            b.setType(Material.OAK_LEAVES, false);
+                            setBlock(world, x + dx, y + dy, z + dz, Material.OAK_LEAVES);
                         }
                     }
                 }
             }
         }
+    }
+
+    public int findSurfaceY(World world, int x, int z) {
+        int maxY = Math.min(255, world.getMaxHeight() - 1);
+        for (int y = maxY; y >= 5; y--) {
+            Block b = world.getBlockAt(x, y, z);
+            Material type = b.getType();
+            if (isSolidGround(type)) {
+                return y;
+            }
+        }
+        return world.getHighestBlockYAt(x, z);
+    }
+
+    private boolean isSolidGround(Material type) {
+        if (type == Material.AIR || type.isAir()) return false;
+        String name = type.name();
+        if (name.contains("LEAVES") || name.contains("LOG") || name.contains("WOOD") ||
+                name.contains("FENCE") || name.contains("WALL") || name.contains("FLOWER") ||
+                (name.contains("GRASS") && !name.contains("BLOCK")) || name.contains("PLANT") ||
+                name.contains("SAPLING") || name.contains("MUSHROOM") || name.contains("VINE") ||
+                name.contains("LANTERN") || name.contains("TORCH") || name.contains("BARS")) {
+            return false;
+        }
+        return type.isSolid();
+    }
+
+    private void setBlock(World world, int x, int y, int z, Material mat) {
+        Block b = world.getBlockAt(x, y, z);
+        modifiedBlocks.add(b.getLocation());
+        b.setType(mat, false);
+    }
+
+    public void clearCemeteryBlocks() {
+        for (Location loc : modifiedBlocks) {
+            if (loc.getWorld() != null) {
+                Block b = loc.getBlock();
+                if (b.getType() != Material.AIR && (b.getType().name().contains("WALL") || b.getType().name().contains("LANTERN") || b.getType() == Material.CHEST || b.getType() == Material.IRON_BARS || b.getType().name().contains("LOG") || b.getType().name().contains("LEAVES"))) {
+                    b.setType(Material.AIR, false);
+                }
+            }
+        }
+        modifiedBlocks.clear();
     }
 }

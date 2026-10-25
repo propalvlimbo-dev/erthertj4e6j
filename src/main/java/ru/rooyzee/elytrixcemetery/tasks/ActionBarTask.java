@@ -2,7 +2,6 @@ package ru.rooyzee.elytrixcemetery.tasks;
 
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -43,7 +42,7 @@ public class ActionBarTask extends BukkitRunnable {
         int ghosts = plugin.getGhostController().getAliveCount();
         String time = plugin.getGraveManager().formatTime(plugin.getGraveManager().getRemainingRefillSeconds());
 
-        String bar = ColorUtil.colorize("&f☁ &#F8BEFBКЛАДБИЩЕ &8┃ &fМогил: &#F8BEFB" + dug + "&7/&#F8BEFB" + total
+        String bar = ColorUtil.colorize("&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &8» &#F8BEFBКладбище &8┃ &fМогил: &#F8BEFB" + dug + "&7/&#F8BEFB" + total
                 + " &8┃ &fПризраков: &#F8BEFB" + ghosts
                 + " &8┃ &fОбновление: &#F8BEFB" + time);
 

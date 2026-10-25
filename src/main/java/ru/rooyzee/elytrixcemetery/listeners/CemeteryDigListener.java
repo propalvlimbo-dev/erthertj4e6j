@@ -30,16 +30,23 @@ public class CemeteryDigListener implements Listener {
         if (block == null) return;
 
         Grave grave = plugin.getGraveManager().getGraveAt(block.getLocation());
+        if (grave == null) {
+            grave = plugin.getGraveManager().getGraveByChest(block.getLocation());
+        }
         if (grave == null) return;
 
-        event.setCancelled(true);
         Player player = event.getPlayer();
 
         if (grave.isDug()) {
-            player.sendMessage(ColorUtil.colorize("&f☁ &#F8BEFBᴇʟʏᴛʀɪx &7» &cЭта могила уже раскопана!"));
+            if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
+                // Разрешаем открыть сундук раскопанной могилы
+                event.setCancelled(true);
+                grave.openChestFor(player);
+            }
             return;
         }
 
+        event.setCancelled(true);
         ItemStack hand = player.getInventory().getItemInMainHand();
         if (hand == null || !hand.getType().name().endsWith("_SHOVEL")) {
             player.sendMessage(ColorUtil.colorize("&f☁ &#F8BEFBᴇʟʏᴛʀɪx &7» &cЧтобы раскопать могилу, возьмите в руку лопату!"));
@@ -55,11 +62,14 @@ public class CemeteryDigListener implements Listener {
     public void onBlockBreak(BlockBreakEvent event) {
         Block block = event.getBlock();
         Grave grave = plugin.getGraveManager().getGraveAt(block.getLocation());
+        if (grave == null) {
+            grave = plugin.getGraveManager().getGraveByChest(block.getLocation());
+        }
         if (grave != null) {
             event.setCancelled(true);
             Player player = event.getPlayer();
             if (grave.isDug()) {
-                player.sendMessage(ColorUtil.colorize("&f☁ &#F8BEFBᴇʟʏᴛʀɪx &7» &cЭта могила уже раскопана!"));
+                grave.openChestFor(player);
                 return;
             }
             ItemStack hand = player.getInventory().getItemInMainHand();

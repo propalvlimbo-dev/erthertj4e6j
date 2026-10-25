@@ -15,7 +15,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class GraveManager {
 
     private final Main plugin;
-    private final Map<String, Grave> graves = new ConcurrentHashMap<>();
+    private final Map<String, Grave> gravesByDig = new ConcurrentHashMap<>();
+    private final Map<String, Grave> gravesByChest = new ConcurrentHashMap<>();
     private long nextRefillTime;
 
     public GraveManager(Main plugin) {
@@ -26,31 +27,36 @@ public class GraveManager {
     public void registerGraves(List<Grave> graveList) {
         clearAll();
         for (Grave g : graveList) {
-            String key = locKey(g.getDigLocation());
-            graves.put(key, g);
+            gravesByDig.put(locKey(g.getDigLocation()), g);
+            gravesByChest.put(locKey(g.getChestLocation()), g);
             g.updateHologram(plugin);
         }
     }
 
     public Grave getGraveAt(Location loc) {
         if (loc == null) return null;
-        return graves.get(locKey(loc));
+        return gravesByDig.get(locKey(loc));
+    }
+
+    public Grave getGraveByChest(Location loc) {
+        if (loc == null) return null;
+        return gravesByChest.get(locKey(loc));
     }
 
     public Collection<Grave> getAllGraves() {
-        return graves.values();
+        return gravesByDig.values();
     }
 
     public int getDugCount() {
         int count = 0;
-        for (Grave g : graves.values()) {
+        for (Grave g : gravesByDig.values()) {
             if (g.isDug()) count++;
         }
         return count;
     }
 
     public int getTotalCount() {
-        return graves.size();
+        return gravesByDig.size();
     }
 
     public long getRemainingRefillSeconds() {
@@ -72,10 +78,10 @@ public class GraveManager {
     }
 
     public void refillAndBuryAll() {
-        if (graves.isEmpty()) return;
+        if (gravesByDig.isEmpty()) return;
 
         int buried = 0;
-        for (Grave g : graves.values()) {
+        for (Grave g : gravesByDig.values()) {
             if (g.isDug()) {
                 g.bury(plugin);
                 buried++;
@@ -99,10 +105,11 @@ public class GraveManager {
     }
 
     public void clearAll() {
-        for (Grave g : graves.values()) {
+        for (Grave g : gravesByDig.values()) {
             g.removeHologram();
         }
-        graves.clear();
+        gravesByDig.clear();
+        gravesByChest.clear();
     }
 
     private String locKey(Location loc) {

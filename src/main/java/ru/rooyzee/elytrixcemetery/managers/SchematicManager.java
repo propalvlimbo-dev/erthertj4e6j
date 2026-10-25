@@ -39,6 +39,10 @@ public class SchematicManager {
         this.generator = new CemeteryGenerator(plugin);
     }
 
+    public CemeteryGenerator getGenerator() {
+        return generator;
+    }
+
     public boolean buildOrPasteCemetery() {
         Location center = plugin.getConfigManager().getCenterLocation();
         if (center == null || center.getWorld() == null) return false;
@@ -47,9 +51,9 @@ public class SchematicManager {
         int cx = center.getBlockX();
         int cz = center.getBlockZ();
 
-        // Загружаем нужные 9 чанков
-        for (int dx = -2; dx <= 2; dx++) {
-            for (int dz = -2; dz <= 2; dz++) {
+        // Загружаем нужные 25 чанков (5x5 чанков вокруг центра)
+        for (int dx = -3; dx <= 3; dx++) {
+            for (int dz = -3; dz <= 3; dz++) {
                 int chX = (cx >> 4) + dx;
                 int chZ = (cz >> 4) + dz;
                 if (!world.isChunkLoaded(chX, chZ)) {
@@ -69,7 +73,7 @@ public class SchematicManager {
         }
 
         // Если файла схематики нет — генерируем красивое кладбище процедурно!
-        plugin.getLogger().info("Схематика не найдена. Запуск процедурной генерации кладбища...");
+        plugin.getLogger().info("Запуск адаптивной генерации кладбища под ландшафт...");
         List<Grave> generatedGraves = generator.generateCemetery(center);
         plugin.getGraveManager().registerGraves(generatedGraves);
         plugin.getLogger().info("✓ Кладбище успешно сгенерировано! Создано " + generatedGraves.size() + " могил.");
@@ -130,13 +134,13 @@ public class SchematicManager {
         int id = 1;
         for (int x = cx - radius; x <= cx + radius; x++) {
             for (int z = cz - radius; z <= cz + radius; z++) {
-                for (int y = cy - 2; y <= cy + 3; y++) {
+                for (int y = cy - 8; y <= cy + 12; y++) {
                     Block b = world.getBlockAt(x, y, z);
                     Block below = world.getBlockAt(x, y - 1, z);
                     if (below.getType() == Material.CHEST && (b.getType() == Material.COARSE_DIRT || b.getType() == rootedDirt || b.getType() == Material.PODZOL || b.getType() == Material.DIRT)) {
                         Location digLoc = b.getLocation();
                         Location chestLoc = below.getLocation();
-                        Location holoLoc = new Location(world, x + 0.5, y + 2.4, z + 0.5);
+                        Location holoLoc = new Location(world, x + 0.5, y + 2.6, z + 0.5);
                         found.add(new Grave(id++, digLoc, chestLoc, holoLoc));
                     }
                 }
