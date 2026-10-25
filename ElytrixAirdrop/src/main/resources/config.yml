@@ -16,11 +16,11 @@ airdrops:
     schematic: "mir.schem"
     display-name: "&#208BFBМирный"
     hologram:
-      - "&f☁ &#F8BEFBᴇʟʏᴛʀɪx"
+      - "&#F8BEFB&lМИРНЫЙ АИРДРОП"
+      - "Режим: &#F8BEFBГриферский"
       - ""
-      - "&#208BFB☁ Мирный аирдроп"
-      - "&7●&f PvP отключено в радиусе 30 блоков"
-      - ""
+      - "• &#F8BEFBЗона: &aPvP отключено"
+      - "• &#F8BEFBРадиус защиты: &f30 блоков"
       - "%status%"
   fire:
     enabled: true
@@ -32,11 +32,11 @@ airdrops:
     loot-min-items: 10
     loot-max-items: 20
     hologram:
-      - "&f☁ &#F8BEFBᴇʟʏᴛʀɪx"
+      - "&#F8BEFB&lОГНЕННЫЙ АИРДРОП"
+      - "Режим: &#F8BEFBГриферский"
       - ""
-      - "&#F8BEFBОгненный аирдроп"
-      - "&7● &fОпасность: &c5/5"
-      - "&7● &fИссушение в зоне"
+      - "• &#F8BEFBОпасность: &cВысокая (5/5)"
+      - "• &#F8BEFBМетеориты: &fЛомайте обсидиан"
       - "%status%"
   sky:
     enabled: true
@@ -48,10 +48,9 @@ airdrops:
     max-above-ground: 50
     display-name: "&bВоздушный"
     hologram:
-      - "&f☁ &#F8BEFBᴇʟʏᴛʀɪx"
+      - "&#F8BEFB&lНЕБЕСНЫЙ АИРДРОП"
+      - "Режим: &#F8BEFBГриферский"
       - ""
-      - "&bВоздушный аирдроп"
-      - "&7● &f5 шалкеров разной редкости"
-      - "&7● &fPvP включено"
-      - ""
+      - "• &#F8BEFBСундуки: &f5 шалкеров с лутом"
+      - "• &#F8BEFBЗона: &cPvP включено"
       - "%status%"

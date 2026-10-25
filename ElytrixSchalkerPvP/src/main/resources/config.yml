@@ -4,7 +4,7 @@ settings:
   loot-time-seconds: 60
   explosion-radius: 6
   explosion-damage: 16.0
-  loot-cooldown-ms: 800 # Задержка между взятием предметов (в миллисекундах)
+  loot-cooldown-ms: 800
 
 rarity-chances:
   COMMON: 75
@@ -36,7 +36,6 @@ inventory-sizes:
   MYTHICAL: 36
   LEGENDARY: 45
 
-# Процент заполнения. Для 27 слотов: 22% = ~6 предметов, 45% = ~12 предметов.
 loot-fill-percent:
   COMMON:
     min: 22
@@ -73,27 +72,26 @@ messages:
 
 hologram:
   sleeping:
-    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx"
+    - "&#F8BEFB&lШАЛКЕР С ЛУТОМ"
+    - "Локация: &#F8BEFBWarp PvP"
     - ""
-    - "&8Загадочный шалкер"
-    - ""
-    - "&7Статус: &fСпит"
-    - "&7Примерное время: &f~{time}"
+    - "• &#F8BEFBСтатус: &7Спит"
+    - "• &#F8BEFBДо пробуждения: &f~{time}"
   ready:
-    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx"
+    - "&#F8BEFB&lШАЛКЕР С ЛУТОМ"
+    - "Локация: &#F8BEFBWarp PvP"
     - ""
-    - "{rarity_color}Шалкер {rarity_name}"
-    - ""
-    - "&7Статус: &aГотов"
-    - "&7● &fОткройте чтобы забрать лут"
+    - "• &#F8BEFBРедкость: {rarity_color}{rarity_name}"
+    - "• &#F8BEFBСтатус: &aГотов к открытию"
+    - "• &#F8BEFBНажмите ПКМ чтобы открыть"
   active:
-    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx"
+    - "&#F8BEFB&lШАЛКЕР С ЛУТОМ"
+    - "Локация: &#F8BEFBWarp PvP"
     - ""
-    - "{rarity_color}Шалкер {rarity_name}"
-    - ""
-    - "&7Статус: &eОткрыт"
-    - "&7Осталось: &f{time} сек."
+    - "• &#F8BEFBРедкость: {rarity_color}{rarity_name}"
+    - "• &#F8BEFBСтатус: &eОткрыт"
+    - "• &#F8BEFBДо исчезновения: &f{time} сек."
   exploding:
-    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx"
+    - "&#F8BEFB&lШАЛКЕР С ЛУТОМ"
     - ""
-    - "&c⚠ ВЗРЫВ ⚠"
+    - "&c⚠ ВЗРЫВ ШАЛКЕРА ⚠"

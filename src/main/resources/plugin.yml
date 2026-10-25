@@ -1,21 +1,21 @@
-name: ElytrixParadise
+name: ElytrixCemetery
 version: 1.0.0
-main: ru.rooyzee.elytrixparadise.Main
+main: ru.rooyzee.elytrixcemetery.Main
 api-version: 1.16
 author: rooyzee
 depend: [WorldEdit, WorldGuard, DecentHolograms]
 softdepend: [PlaceholderAPI, FastAsyncWorldEdit]
 commands:
-  elytrixparadise:
-    description: Основная команда Райского места
-    aliases: [ep, paradise]
-    usage: /elytrixparadise help
-  paradise:
-    description: Телепортация и управление Райским местом
-    aliases: [ep]
-    usage: /paradise tp
+  elytrixcemetery:
+    description: Основная команда Кладбища
+    aliases: [ec, cemetery, cem, paradise, ep, elytrixparadise]
+    usage: /cemetery help
+  cemetery:
+    description: Основная команда Кладбища
+    aliases: [ec, cem]
+    usage: /cemetery help
 permissions:
-  elytrixparadise.admin:
+  elytrixcemetery.admin:
     default: op
-  elytrixparadise.tp:
+  elytrixcemetery.tp:
     default: true

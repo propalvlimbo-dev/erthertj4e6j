@@ -5,10 +5,10 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>ru.rooyzee</groupId>
-    <artifactId>ElytrixParadise</artifactId>
+    <artifactId>ElytrixCemetery</artifactId>
     <version>1.0</version>
     <packaging>jar</packaging>
-    <name>ElytrixParadise</name>
+    <name>ElytrixCemetery</name>
 
     <properties>
         <java.version>1.8</java.version>
@@ -17,7 +17,7 @@
 
     <build>
         <defaultGoal>clean package</defaultGoal>
-        <finalName>ElytrixParadise</finalName>
+        <finalName>ElytrixCemetery</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -37,17 +37,6 @@
             </resource>
         </resources>
     </build>
-
-    <repositories>
-        <repository>
-            <id>spigot-repo</id>
-            <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
-        </repository>
-        <repository>
-            <id>papermc-repo</id>
-            <url>https://repo.papermc.io/repository/maven-public/</url>
-        </repository>
-    </repositories>
 
     <dependencies>
         <dependency>

@@ -1,36 +1,11 @@
 prefix:
-  admin: "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» "
-  player: "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» "
-
-teleport:
-  success: "%prefix%&aВы успешно телепортированы в &#F8BEFBРайское место&a!"
-  cooldown: "%prefix%&cВы сможете телепортироваться снова через &#F8BEFB{time}&c!"
-  no-permission: "%prefix%&cУ вас нет прав на телепортацию в Райское место!"
+  admin: "&f☁ &#F8BEFBᴇʟʏᴛʀɪx &7» "
+  player: "&f☁ &#F8BEFBᴇʟʏᴛʀɪx &7» "
 
 help:
   - ""
-  - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место"
-  - "&#F8BEFB&l┃ &f/paradise tp &8— &#F8BEFBТелепортация в Райское место &8(&7кд: 5 мин&8)"
-  - "&#F8BEFB&l┃ &f/paradise info &8— &#F8BEFBИнформация об ивенте"
-  - "&#F8BEFB&l┃ &f/paradise on &8/ &f/paradise off &8— &#F8BEFBВкл/Выкл Actionbar"
+  - "&f☁ &#F8BEFBᴇʟʏᴛʀɪx &7» &#F8BEFBКладбище"
+  - "&#F8BEFB&l┃ &f/cemetery tp &8— &#F8BEFBТелепортация на Кладбище"
+  - "&#F8BEFB&l┃ &f/cemetery info &8— &#F8BEFBИнформация об ивенте"
+  - "&#F8BEFB&l┃ &f/cemetery actionbar &8— &#F8BEFBВкл/Выкл Actionbar"
   - ""
-
-info:
-  - ""
-  - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место"
-  - "&#F8BEFB&l┃ &fЛокация: &#F8BEFBРайское место"
-  - "&#F8BEFB&l┃ &fАктивно осколков: &#F8BEFB{active_shards}&f/&#F8BEFB{total_shards}"
-  - "&#F8BEFB&l┃ &fСтатус: &#F8BEFBАктивно всегда"
-  - ""
-
-broadcast:
-  start:
-    - ""
-    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место"
-    - "&#F8BEFB&l┃ &fИвент начался! Осколки и Сердце Рая доступны для добычи."
-    - ""
-  end:
-    - ""
-    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBРайское место"
-    - "&#F8BEFB&l┃ &fИвент завершился."
-    - ""

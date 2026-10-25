@@ -273,19 +273,19 @@ jar cf /tmp/stubs.jar -C /tmp/stubs_classes .
 
 CP="libs/spigot-api-shaded.jar:libs/worldedit-core-7.2.0.jar:libs/worldedit-bukkit-7.2.0.jar:libs/FastAsyncWorldEdit-Bukkit-2.4.10.jar:libs/worldguard-bukkit-7.0.5-dist.jar:libs/DecentHolograms-2.8.16.jar:libs/PlaceholderAPI-2.12.3.jar"
 
-echo "=== [1/4] Сборка ElytrixParadise ==="
-BUILD_DIR=/tmp/elytrix_build
+echo "=== [1/4] Сборка ElytrixCemetery ==="
+BUILD_DIR=/tmp/cemetery_build
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR/classes"
 mkdir -p target
 
-find src/main/java/ru/rooyzee/elytrixparadise -name "*.java" > "$BUILD_DIR/sources.txt"
+find src/main/java/ru/rooyzee/elytrixcemetery -name "*.java" > "$BUILD_DIR/sources.txt"
 javac -encoding UTF-8 -cp "$CP" -d "$BUILD_DIR/classes" @"$BUILD_DIR/sources.txt"
 cp src/main/resources/plugin.yml "$BUILD_DIR/classes/"
 cp src/main/resources/config.yml "$BUILD_DIR/classes/"
 cp src/main/resources/messages.yml "$BUILD_DIR/classes/"
-jar -cf ElytrixParadise.jar -C "$BUILD_DIR/classes" .
-cp ElytrixParadise.jar target/ElytrixParadise.jar
+jar -cf ElytrixCemetery.jar -C "$BUILD_DIR/classes" .
+cp ElytrixCemetery.jar target/ElytrixCemetery.jar
 
 echo "=== [2/4] Сборка ElytrixAirdrop ==="
 BUILD_AIRDROP=/tmp/airdrop_build
@@ -322,4 +322,4 @@ jar -cf ElytrixTrader/target/ElytrixTrader.jar -C "$BUILD_TRADER/classes" .
 cp ElytrixTrader/target/ElytrixTrader.jar ElytrixTrader.jar
 
 echo "=== ВСЕ ПЛАГИНЫ УСПЕШНО СОБРАНЫ! ==="
-ls -lh ElytrixParadise.jar ElytrixAirdrop.jar ElytrixSchalkerPvP.jar ElytrixTrader.jar
+ls -lh ElytrixCemetery.jar ElytrixAirdrop.jar ElytrixSchalkerPvP.jar ElytrixTrader.jar

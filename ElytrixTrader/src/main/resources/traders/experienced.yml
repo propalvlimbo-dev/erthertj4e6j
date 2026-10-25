@@ -5,57 +5,46 @@
 # ═══════════════════════════════════════════════════════════════
 
 enabled: true
-display-name: '&#8CE99A&lОпытный Торговец'
+display-name: '&#F8BEFB&lОпытный Торговец'
 skin: 'Steve'
 hold-item: true
 spawn-sound: ENTITY_PLAYER_LEVELUP
 
-# Миры для спавна
 worlds:
   - 'world'
 
-# Время жизни (секунд) — берётся из config.yml, но можно переопределить
 lifetime-seconds: 7200
-
-# Сколько случайных предметов показывать в меню (из редактора /etr edit)
 random-trades: 14
-
-# Кулдаун покупки на одного игрока (секунд)
 trade-cooldown-seconds: 60
 
-# Голограмма
 hologram:
   enabled: true
   height: 2.8
   line-height: 0.30
   lines:
-    - '&#8CE99A&lОпытный Торговец'
-    - '&7Хранитель опыта &8| &#F8BEFBelytrix.pw'
+    - '&#F8BEFB&lОПЫТНЫЙ ТОРГОВЕЦ'
+    - 'Уникальный странствующий торговец'
     - ' '
-    - '&7● &fОсталось: &#8CE99A{left}'
-    - '&7● &fПКМ по торговцу — сделка'
+    - '• &#F8BEFBПКМ &8— &fОткрыть меню сделок'
+    - '• &#F8BEFBИсчезнет через: &#F8BEFB{left}'
+    - ' '
+    - '• &#F8BEFBНаш сайт: &felytrix.pw'
 
-# Иконка в меню
 icon:
   material: experience_bottle
   amount: 1
   glow: true
 
-# Информационный предмет в меню
 info-item:
   material: book
-  display-name: '&#8CE99A&l{trader}'
+  display-name: '&#F8BEFB&l{trader}'
   lore:
-    - '&#8CE99A&l┃ &fОпыт: &#8CE99A{levels} ур. &8({exp} очк.)'
-    - '&#8CE99A&l┃ &fДо исчезновения: &#8CE99A{left}'
-    - '&#8CE99A&l┃ '
-    - '&7● &fОплата опытом'
-    - '&7● &fПокупка раз в 1 минуту'
+    - '&#F8BEFB&l┃ &fОпыт: &#F8BEFB{levels} ур. &8({exp} очк.)'
+    - '&#F8BEFB&l┃ &fДо исчезновения: &#F8BEFB{left}'
+    - '&#F8BEFB&l┃ '
+    - '• &#F8BEFBОплата опытом'
+    - '• &#F8BEFBПокупка раз в 1 минуту'
 
-# Схематика
-# marker-material — блок, которым в схеме размечена СЕРЕДИНА постройки:
-# торговец встаёт ровно на этот блок (ноги на верхней грани). Над маркером
-# нужно оставить 2 блока воздуха под рост NPC.
 schematic:
   enabled: true
   file: 'experienced_trader'
@@ -66,5 +55,4 @@ schematic:
   offset-z: 0
   clear-radius: 0
 
-# Предметы задаются через /etr edit experienced (trader_trades/experienced.yml)
 trades: []
